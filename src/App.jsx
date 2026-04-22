@@ -122,7 +122,7 @@ function avatarColors(name){const h=(name.charCodeAt(0)*17+(name.charCodeAt(1)||
 // ─── GLOBAL STYLE ────────────────────────────────────────────────────────────
 const G = ()=>(
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Playfair+Display:wght@400;500;600&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap');
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{background:${T.bg};}
     input,textarea,select{font-family:'DM Sans',sans-serif;color-scheme:light;}
@@ -166,8 +166,8 @@ function FairwayLogo({ variant = "dark", size = "md" }) {
 
       {/* Nom */}
       <div style={{
-        fontFamily: "'Playfair Display', serif",
-        fontSize: s.title,
+        fontFamily: "'Cormorant Garamond', serif",
+        fontSize: s.title + 4,
         fontWeight: 400,
         color,
         letterSpacing: "0.08em",
@@ -575,7 +575,7 @@ function PastSlotCard({slot,profiles,currentUser,onAddPhotos,onLightbox}){
 
   function handleFiles(e){
     const files=Array.from(e.target.files);
-    const tooBig=files.filter(f=>f.size>4*1024*1024);
+    const tooBig=files.filter(f=>f.size>10*1024*1024);
     if(tooBig.length){onAddPhotos(slot.id,[]);return;}// will show toast outside
     let loaded=[];
     let done=0;
@@ -705,15 +705,20 @@ function ReviewCard({rev,profiles,currentUser,onDelete,onLightbox}){
 // ─── PROFILE VIEW (read-only, for viewing other members) ─────────────────────
 function MemberCard({profile}){
   if(!profile)return null;
+  const isPublic = profile.profilePublic !== false;
   return(
     <div className="chover" style={{background:T.surface,borderRadius:T.radius,border:`1.5px solid ${T.border}`,padding:"20px",boxShadow:T.shadow,display:"flex",alignItems:"center",gap:"14px"}}>
       <Ava profile={profile} size={48}/>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:"15px",fontWeight:500,color:T.text}}>{profile.firstName} {profile.lastName}</div>
-        {profile.index&&<div style={{fontSize:"12px",color:T.accent,fontWeight:500,marginTop:"2px"}}>Index {profile.index}</div>}
+        <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:"15px",fontWeight:500,color:T.text}}>{profile.firstName} {profile.lastName}</div>
+          {!isPublic&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>}
+        </div>
+        {isPublic&&profile.index&&<div style={{fontSize:"12px",color:T.accent,fontWeight:500,marginTop:"2px"}}>Index {profile.index}</div>}
+        {!isPublic&&<div style={{fontSize:"12px",color:T.textLight,marginTop:"2px",fontStyle:"italic"}}>Profil masqué</div>}
         <div style={{display:"flex",gap:"10px",marginTop:"6px",flexWrap:"wrap"}}>
-          {profile.tee&&<span style={{fontSize:"11px",color:T.textLight,display:"flex",alignItems:"center",gap:"3px"}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>Départ {profile.tee}</span>}
-          {profile.contact&&<span style={{fontSize:"11px",color:T.textLight,display:"flex",alignItems:"center",gap:"3px"}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>{profile.contact}</span>}
+          {isPublic&&profile.tee&&<span style={{fontSize:"11px",color:T.textLight,display:"flex",alignItems:"center",gap:"3px"}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>Départ {profile.tee}</span>}
+          {isPublic&&profile.contact&&<span style={{fontSize:"11px",color:T.textLight,display:"flex",alignItems:"center",gap:"3px"}}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>{profile.contact}</span>}
         </div>
       </div>
     </div>
@@ -1063,15 +1068,16 @@ function ProfileTab({currentUser,profiles,onSave,onLogout,notify}){
   const [pwConfirm,setPwConfirm]=useState("");
   const [editingPw,setEditingPw]=useState(false);
   const [saved,setSaved]=useState(false);
+  const [profilePublic,setProfilePublic]=useState(p.profilePublic!==false); // true par défaut
 
   function handlePhotoUpload(e){
     const f=e.target.files[0];if(!f)return;
-    if(f.size>2*1024*1024){notify("Photo trop lourde (max 2 Mo)");return;}
+    if(f.size>10*1024*1024){notify("Photo trop lourde (max 10 Mo)");return;}
     const r=new FileReader();r.onload=ev=>setPhoto(ev.target.result);r.readAsDataURL(f);
   }
 
   function handleSave(){
-    const updated={...p,photo,firstName,lastName,contact,index,tee};
+    const updated={...p,photo,firstName,lastName,contact,index,tee,profilePublic};
     onSave(updated,{username,pwCurrent,pwNew,pwConfirm});
     setSaved(true);setTimeout(()=>setSaved(false),2000);
   }
@@ -1119,6 +1125,32 @@ function ProfileTab({currentUser,profiles,onSave,onLogout,notify}){
               ))}
             </div>
           </Fld>
+
+          {/* Visibilité du profil */}
+          <div style={{marginTop:"16px",padding:"14px 16px",borderRadius:T.radiusSm,border:`1.5px solid ${profilePublic?T.accent:T.border}`,background:profilePublic?T.accentLight:T.surfaceAlt,transition:"all .2s",cursor:"pointer"}} onClick={()=>setProfilePublic(v=>!v)}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={profilePublic?T.accent:T.textMid} strokeWidth="1.8">
+                  {profilePublic
+                    ? <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
+                    : <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></>
+                  }
+                </svg>
+                <div>
+                  <div style={{fontSize:"13px",fontWeight:500,color:profilePublic?T.accent:T.textMid,fontFamily:"'DM Sans',sans-serif"}}>
+                    {profilePublic ? "Profil visible par l'équipe" : "Profil masqué"}
+                  </div>
+                  <div style={{fontSize:"11px",color:T.textLight,marginTop:"2px"}}>
+                    {profilePublic ? "Index, départ et contact visibles par les membres" : "Seul votre nom est visible"}
+                  </div>
+                </div>
+              </div>
+              {/* Toggle switch */}
+              <div style={{width:"40px",height:"22px",borderRadius:"11px",background:profilePublic?T.accent:T.borderStrong,transition:"background .2s",position:"relative",flexShrink:0}}>
+                <div style={{position:"absolute",top:"3px",left:profilePublic?"21px":"3px",width:"16px",height:"16px",borderRadius:"50%",background:"#fff",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1212,7 +1244,7 @@ export default function App(){
       try{const r=await window.storage.get(SK_REVIEWS,true);if(r)setReviews(JSON.parse(r.value));}catch{}
       try{const p=await window.storage.get(SK_USERS,true);  if(p)setProfiles(JSON.parse(p.value));}catch{}
       try{const n=await window.storage.get(SK_NOTIFS,true); if(n)setNotifs(JSON.parse(n.value));}catch{}
-      try{const sess=localStorage.getItem(SK_SESSION);if(sess){const u=JSON.parse(sess);setCurrentUser(u);}}catch{}
+      try{const sess=localStorage.getItem(SK_SESSION);if(sess){const u=JSON.parse(sess);const pStr=await window.storage.get(SK_USERS,true);const pData=pStr?JSON.parse(pStr.value):{};if(pData[u.username])setCurrentUser(u);}}catch{}
     })();
   },[]);
 
@@ -1234,7 +1266,7 @@ export default function App(){
     const pr=profiles[authUser.trim()];
     if(!pr){setAuthErr("Nom d'utilisateur introuvable.");return;}
     if(pr.passwordHash!==hashPw(authPw)){setAuthErr("Mot de passe incorrect.");return;}
-    const u={username:authUser.trim()};
+    const u={username:authUser.trim(),passwordHash:pr.passwordHash};
     setCurrentUser(u);
     try{localStorage.setItem(SK_SESSION,JSON.stringify(u));}catch{}
     setAuthUser("");setAuthPw("");
@@ -1248,7 +1280,7 @@ export default function App(){
     const newProfile={username:authUser.trim(),passwordHash:hashPw(authPw),firstName:authUser.trim()};
     const next={...profiles,[authUser.trim()]:newProfile};
     setProfiles(next);persist(SK_USERS,next);
-    const u={username:authUser.trim()};
+    const u={username:authUser.trim(),passwordHash:hashPw(authPw)};
     setCurrentUser(u);
     try{localStorage.setItem(SK_SESSION,JSON.stringify(u));}catch{}
     setAuthUser("");setAuthPw("");
@@ -1332,7 +1364,7 @@ export default function App(){
   function handleLeave(id){const next=slots.map(s=>s.id!==id?s:{...s,participants:s.participants.filter(p=>p!==currentUser.username)});setSlots(next);persist(SK_SLOTS,next);}
   function handleDelSlot(id){const next=slots.filter(s=>s.id!==id);setSlots(next);persist(SK_SLOTS,next);}
   function handleAddSlotPhotos(id,newPhotos){
-    if(!newPhotos.length){notify("Photo trop lourde (max 4 Mo)");return;}
+    if(!newPhotos.length){notify("Photo trop lourde (max 10 Mo)");return;}
     const next=slots.map(s=>s.id!==id?s:{...s,photos:[...(s.photos||[]),...newPhotos]});
     setSlots(next);persist(SK_SLOTS,next);
     notify(`${newPhotos.length} photo${newPhotos.length>1?"s":""} ajoutée${newPhotos.length>1?"s":""} !`);
@@ -1350,7 +1382,7 @@ export default function App(){
   function handleRevPhoto(e){
     const files=Array.from(e.target.files);
     if(revPhotos.length+files.length>5){notify("Maximum 5 photos par avis");return;}
-    files.forEach(f=>{if(f.size>3*1024*1024){notify("Photo trop lourde (max 3 Mo)");return;}const reader=new FileReader();reader.onload=ev=>setRevPhotos(prev=>[...prev,ev.target.result]);reader.readAsDataURL(f);});
+    files.forEach(f=>{if(f.size>10*1024*1024){notify("Photo trop lourde (max 10 Mo)");return;}const reader=new FileReader();reader.onload=ev=>setRevPhotos(prev=>[...prev,ev.target.result]);reader.readAsDataURL(f);});
   }
 
   // ── DERIVED ──
@@ -1361,6 +1393,8 @@ export default function App(){
   const stats={};reviews.forEach(r=>{if(!stats[r.course])stats[r.course]={total:0,count:0};stats[r.course].total+=r.rating;stats[r.course].count++;});
   const filtRev=filterCourse==="Tous"?reviews:reviews.filter(r=>r.course===filterCourse);
   const usedActivityTypes=[...new Set(slots.filter(s=>s.date>=today).map(s=>s.activityType||"parcours"))];
+
+  const [showPw, setShowPw] = useState(false);
 
   // ── LOGIN / REGISTER SCREEN ──
   if(!currentUser) return(
@@ -1385,7 +1419,15 @@ export default function App(){
               <input style={{width:"100%",padding:"11px 14px",borderRadius:T.radiusSm,border:"1.5px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.08)",color:"#E8EDE8",fontSize:"14px",outline:"none",fontFamily:"'DM Sans',sans-serif"}} placeholder="Identifiant" value={authUser} onChange={e=>setAuthUser(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?handleLogin():handleRegister())} autoFocus onFocus={e=>e.target.style.borderColor="rgba(255,255,255,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.2)"}/>
             </Fld>
             <Fld label="Mot de passe">
-              <input type="password" style={{width:"100%",padding:"11px 14px",borderRadius:T.radiusSm,border:"1.5px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.08)",color:"#E8EDE8",fontSize:"14px",outline:"none",fontFamily:"'DM Sans',sans-serif"}} placeholder="••••••••" value={authPw} onChange={e=>setAuthPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?handleLogin():handleRegister())} onFocus={e=>e.target.style.borderColor="rgba(255,255,255,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.2)"}/>
+              <div style={{position:"relative"}}>
+                <input type={showPw?"text":"password"} style={{width:"100%",padding:"11px 42px 11px 14px",borderRadius:T.radiusSm,border:"1.5px solid rgba(255,255,255,0.2)",background:"rgba(255,255,255,0.08)",color:"#E8EDE8",fontSize:"14px",outline:"none",fontFamily:"'DM Sans',sans-serif"}} placeholder="••••••••" value={authPw} onChange={e=>setAuthPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(authMode==="login"?handleLogin():handleRegister())} onFocus={e=>e.target.style.borderColor="rgba(255,255,255,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.2)"}/>
+                <button type="button" onClick={()=>setShowPw(v=>!v)} style={{position:"absolute",right:"12px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"rgba(232,237,232,0.6)",padding:"2px",display:"flex",alignItems:"center"}}>
+                  {showPw
+                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  }
+                </button>
+              </div>
             </Fld>
 
             {authErr&&<div style={{padding:"10px 12px",background:"rgba(192,57,43,0.25)",color:"#ffb3a7",borderRadius:T.radiusSm,fontSize:"13px",marginBottom:"14px",border:"1px solid rgba(192,57,43,0.4)"}}>{authErr}</div>}
