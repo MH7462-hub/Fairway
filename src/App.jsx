@@ -1451,69 +1451,6 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
     return (
       <div style={{ animation: "slideUp .2s ease" }}>
         {viewedProfile && <MemberProfileModal profile={viewedProfile} onClose={() => setViewedProfile(null)} />}
-        {detailSlot && (
-          <div onClick={() => setDetailSlot(null)} style={{ position:"fixed", inset:0, background:"rgba(26,23,20,0.6)", zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-            <div onClick={e=>e.stopPropagation()} style={{ background:T.surface, borderRadius:"24px 24px 0 0", width:"100%", maxWidth:"480px", padding:"24px 24px 40px", animation:"slideUp .25s cubic-bezier(.22,1,.36,1)" }}>
-              <div style={{ width:"36px", height:"4px", borderRadius:"2px", background:T.border, margin:"0 auto 20px" }}/>
-              {(() => {
-                const act  = ACTIVITY_TYPES.find(a=>a.id===detailSlot.activityType)||ACTIVITY_TYPES[0];
-                const isIn = detailSlot.participants?.includes(currentUser.uid);
-                return (
-                  <>
-                    {/* Bandeau activité */}
-                    <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"18px" }}>
-                      <div style={{ width:"48px", height:"48px", borderRadius:"14px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                        {act.icon(act.color)}
-                      </div>
-                      <div>
-                        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text }}>
-                          {detailSlot.activityType==="parcours"&&detailSlot.course ? detailSlot.course.split(" – ")[0] : act.label}
-                        </div>
-                        <div style={{ fontSize:"12px", color:T.textLight, marginTop:"2px" }}>
-                          {formatDate(detailSlot.date)} · {detailSlot.time}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Participants */}
-                    <div style={{ marginBottom:"16px" }}>
-                      <div style={{ fontSize:"11px", color:T.textLight, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"8px" }}>Participants · {detailSlot.participants?.length}/{detailSlot.maxPlayers||4}</div>
-                      <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
-                        {detailSlot.participants?.map(uid => {
-                          const p=profiles[uid];
-                          return (
-                            <div key={uid} onClick={()=>{setDetailSlot(null);openProfile(p);}} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 10px 4px 4px", background: uid===currentUser.uid ? T.accentLight : T.surfaceAlt, borderRadius:"20px", cursor:"pointer", border:`1px solid ${uid===currentUser.uid?T.accent+"44":T.border}` }}>
-                              <Ava profile={p} size={22}/>
-                              <span style={{ fontSize:"12px", color:uid===currentUser.uid?T.accent:T.textMid, fontWeight: uid===currentUser.uid?600:400 }}>{p?.firstName||uid}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    {/* Note */}
-                    {detailSlot.note && (
-                      <div style={{ padding:"10px 14px", background:T.surfaceAlt, borderRadius:"10px", marginBottom:"16px", borderLeft:`3px solid ${act.color}` }}>
-                        <p style={{ fontSize:"13px", color:T.textMid, fontStyle:"italic", margin:0 }}>{detailSlot.note}</p>
-                      </div>
-                    )}
-                    {/* Actions */}
-                    <div style={{ display:"flex", gap:"8px" }}>
-                      {!isIn && detailSlot.participants?.length < (detailSlot.maxPlayers||4) && (
-                        <button onClick={()=>{handleJoin(detailSlot.id);setDetailSlot(null);}} style={{ flex:1, padding:"12px", borderRadius:"12px", background:act.color, color:"#fff", border:"none", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Rejoindre</button>
-                      )}
-                      {isIn && detailSlot.author!==currentUser.uid && (
-                        <button onClick={()=>{handleLeave(detailSlot.id);setDetailSlot(null);}} style={{ flex:1, padding:"12px", borderRadius:"12px", background:T.surfaceAlt, color:T.textMid, border:`1px solid ${T.border}`, fontSize:"14px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Se désister</button>
-                      )}
-                      {detailSlot.author===currentUser.uid && (
-                        <button onClick={()=>{handleDelSlot(detailSlot.id);setDetailSlot(null);}} style={{ flex:1, padding:"12px", borderRadius:"12px", background:T.dangerLight, color:T.danger, border:"none", fontSize:"14px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Annuler le slot</button>
-                      )}
-                      <button onClick={()=>setDetailSlot(null)} style={{ padding:"12px 18px", borderRadius:"12px", background:T.surfaceAlt, color:T.textMid, border:"none", fontSize:"14px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Fermer</button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
         <button onClick={() => setSelectedTeam(null)} style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", cursor: "pointer", color: T.accent, fontSize: "13px", marginBottom: "18px", padding: 0, fontFamily: "'DM Sans',sans-serif" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
           Mes équipes
