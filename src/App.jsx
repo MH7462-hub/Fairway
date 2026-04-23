@@ -1404,6 +1404,268 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
   );
 }
 
+// ─── FAVORIS SECTION ─────────────────────────────────────────────────────────
+function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGolfs, setFavGolfs, favApps, setFavApps, favProfiles }) {
+  const [activeTab,     setActiveTab]     = useState("joueurs"); // joueurs | golfs | apps
+  const [searchPlayer,  setSearchPlayer]  = useState("");
+  const [searchGolf,    setSearchGolf]    = useState("");
+  const [newAppName,    setNewAppName]    = useState("");
+  const [newAppPaid,    setNewAppPaid]    = useState(false);
+  const [newAppNote,    setNewAppNote]    = useState("");
+  const [showAddApp,    setShowAddApp]    = useState(false);
+
+  // Recherche joueurs inscrits (hors moi)
+  const playerResults = searchPlayer.length > 1
+    ? Object.values(profiles).filter(p =>
+        p.uid !== currentUser.uid &&
+        (p.firstName?.toLowerCase().includes(searchPlayer.toLowerCase()) ||
+         p.username?.toLowerCase().includes(searchPlayer.toLowerCase()) ||
+         p.lastName?.toLowerCase().includes(searchPlayer.toLowerCase()))
+      ).slice(0, 8)
+    : [];
+
+  // Recherche golfs FFGolf + saisie libre
+  const golfResults = searchGolf.length > 1
+    ? ALL_GOLF_COURSES.filter(g => g.label.toLowerCase().includes(searchGolf.toLowerCase())).slice(0, 8)
+    : [];
+
+  function toggleFavPlayer(uid) {
+    setFavorites(prev => prev.includes(uid) ? prev.filter(f => f !== uid) : [...prev, uid]);
+  }
+  function toggleFavGolf(label) {
+    setFavGolfs(prev => prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]);
+  }
+  function addCustomGolf() {
+    const v = searchGolf.trim();
+    if (!v || favGolfs.includes(v)) return;
+    setFavGolfs(prev => [...prev, v]);
+    setSearchGolf("");
+  }
+  function addApp() {
+    if (!newAppName.trim()) return;
+    const app = { id: Date.now().toString(), name: newAppName.trim(), paid: newAppPaid, note: newAppNote.trim() };
+    setFavApps(prev => [...prev, app]);
+    setNewAppName(""); setNewAppPaid(false); setNewAppNote(""); setShowAddApp(false);
+  }
+  function removeApp(id) { setFavApps(prev => prev.filter(a => a.id !== id)); }
+
+  const TABS = [["joueurs","⭐ Joueurs"],["golfs","⛳ Golfs"],["apps","📱 Apps"]];
+
+  return (
+    <div style={{ animation: "slideUp .2s ease" }}>
+      <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "18px", fontWeight: 500, color: T.text, marginBottom: "16px" }}>Mes Favoris</h3>
+
+      {/* Sous-onglets */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "20px", background: T.surfaceAlt, borderRadius: "10px", padding: "4px" }}>
+        {TABS.map(([id, label]) => (
+          <button key={id} onClick={() => setActiveTab(id)} style={{ flex: 1, padding: "8px 4px", border: "none", borderRadius: "8px", background: activeTab === id ? T.surface : "transparent", color: activeTab === id ? T.accent : T.textMid, fontSize: "12px", fontWeight: activeTab === id ? 600 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: activeTab === id ? T.shadow : "none", transition: "all .15s" }}>
+            {label}
+            {id === "joueurs" && favorites.length > 0 && <span style={{ marginLeft: "4px", background: T.gold, color: "#fff", borderRadius: "8px", padding: "0 5px", fontSize: "10px" }}>{favorites.length}</span>}
+            {id === "golfs"   && favGolfs.length > 0   && <span style={{ marginLeft: "4px", background: T.accent, color: "#fff", borderRadius: "8px", padding: "0 5px", fontSize: "10px" }}>{favGolfs.length}</span>}
+            {id === "apps"    && favApps.length > 0    && <span style={{ marginLeft: "4px", background: T.accent, color: "#fff", borderRadius: "8px", padding: "0 5px", fontSize: "10px" }}>{favApps.length}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* ── JOUEURS ── */}
+      {activeTab === "joueurs" && (
+        <div style={{ animation: "tabSlide .2s ease" }}>
+          {/* Barre de recherche */}
+          <div style={{ position: "relative", marginBottom: "16px" }}>
+            <input value={searchPlayer} onChange={e => setSearchPlayer(e.target.value)}
+              placeholder="Rechercher un joueur inscrit…"
+              style={{ width: "100%", padding: "10px 14px 10px 36px", borderRadius: T.radiusSm, border: `1.5px solid ${T.border}`, background: T.surface, color: T.text, fontSize: "13px", outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box" }}
+              onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border}
+            />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            {searchPlayer && playerResults.length > 0 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: T.surface, border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, boxShadow: T.shadowMd, zIndex: 50, marginTop: "4px" }}>
+                {playerResults.map(p => {
+                  const isFav = favorites.includes(p.uid);
+                  return (
+                    <div key={p.uid} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.accentLight}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <Ava profile={p} size={32}/>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 500, color: T.text }}>{p.firstName} {p.lastName}</div>
+                        <div style={{ fontSize: "11px", color: T.textLight }}>@{p.username}{p.index ? ` · Idx ${p.index}` : ""}</div>
+                      </div>
+                      <button onClick={() => { toggleFavPlayer(p.uid); setSearchPlayer(""); }}
+                        style={{ background: isFav ? T.gold + "22" : T.accentLight, border: "none", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", color: isFav ? T.gold : T.accent, fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill={isFav ? T.gold : "none"} stroke={isFav ? T.gold : T.accent} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        {isFav ? "Favori" : "Ajouter"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Liste des favoris */}
+          {favProfiles.length === 0
+            ? <div style={{ textAlign: "center", padding: "36px 20px" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 12px" }}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", color: T.textMid, marginBottom: "6px" }}>Aucun joueur favori</p>
+                <p style={{ fontSize: "12px", color: T.textLight }}>Recherche un joueur ci-dessus</p>
+              </div>
+            : <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {favProfiles.map(pr => (
+                  <div key={pr.uid} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow }}>
+                    <Ava profile={pr} size={38}/>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", fontWeight: 500, color: T.text }}>{pr.firstName} {pr.lastName}</div>
+                      <div style={{ fontSize: "11px", color: T.textLight }}>@{pr.username}{pr.index ? ` · Idx ${pr.index}` : ""}</div>
+                    </div>
+                    <button onClick={() => toggleFavPlayer(pr.uid)} style={{ background: `${T.gold}18`, border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={T.gold} stroke={T.gold} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* ── GOLFS ── */}
+      {activeTab === "golfs" && (
+        <div style={{ animation: "tabSlide .2s ease" }}>
+          {/* Recherche FFGolf + saisie libre */}
+          <div style={{ position: "relative", marginBottom: "8px" }}>
+            <input value={searchGolf} onChange={e => setSearchGolf(e.target.value)}
+              placeholder="Rechercher parmi 700 golfs FFGolf…"
+              style={{ width: "100%", padding: "10px 14px 10px 36px", borderRadius: T.radiusSm, border: `1.5px solid ${T.border}`, background: T.surface, color: T.text, fontSize: "13px", outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box" }}
+              onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border}
+              onKeyDown={e => e.key === "Enter" && golfResults.length === 0 && addCustomGolf()}
+            />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            {searchGolf.length > 1 && (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: T.surface, border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, boxShadow: T.shadowMd, zIndex: 50, marginTop: "4px", maxHeight: "220px", overflowY: "auto" }}>
+                {golfResults.length === 0
+                  ? <div style={{ padding: "12px 14px" }}>
+                      <div style={{ fontSize: "12px", color: T.textLight, marginBottom: "8px", fontStyle: "italic" }}>Aucun résultat FFGolf — ajouter manuellement :</div>
+                      <button onClick={addCustomGolf} style={{ background: T.accent, color: "#fff", border: "none", borderRadius: T.radiusSm, padding: "7px 14px", fontSize: "12px", cursor: "pointer", fontWeight: 500 }}>Ajouter "{searchGolf.trim()}"</button>
+                    </div>
+                  : golfResults.map(g => {
+                    const isFav = favGolfs.includes(g.label);
+                    return (
+                      <div key={g.label} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderBottom: `1px solid ${T.border}`, cursor: "pointer" }}
+                        onMouseEnter={e => e.currentTarget.style.background = T.accentLight}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M2 12h4M18 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "13px", color: T.text, fontWeight: 400 }}>{g.label.split(" – ")[0]}</div>
+                          <div style={{ fontSize: "10px", color: T.textLight }}>{g.region}</div>
+                        </div>
+                        <button onClick={() => { toggleFavGolf(g.label); setSearchGolf(""); }}
+                          style={{ background: isFav ? `${T.gold}22` : T.accentLight, border: "none", borderRadius: "8px", padding: "5px 10px", cursor: "pointer", color: isFav ? T.gold : T.accent, fontSize: "11px", fontWeight: 600 }}>
+                          {isFav ? "★ Favori" : "+ Ajouter"}
+                        </button>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            )}
+          </div>
+          <p style={{ fontSize: "11px", color: T.textLight, marginBottom: "16px", fontStyle: "italic" }}>Appuie sur Entrée pour ajouter un golf non listé</p>
+
+          {/* Liste golfs favoris */}
+          {favGolfs.length === 0
+            ? <div style={{ textAlign: "center", padding: "36px 20px" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 12px" }}><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4"/></svg>
+                <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", color: T.textMid, marginBottom: "6px" }}>Aucun golf favori</p>
+                <p style={{ fontSize: "12px", color: T.textLight }}>Recherche parmi les 700 golfs FFGolf</p>
+              </div>
+            : <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {favGolfs.map(label => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: `${T.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M2 12h4M18 12h4"/></svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "13px", fontWeight: 500, color: T.text }}>{label.split(" – ")[0]}</div>
+                      {label.includes(" – ") && <div style={{ fontSize: "11px", color: T.textLight }}>{label.split(" – ")[1]}</div>}
+                    </div>
+                    <button onClick={() => toggleFavGolf(label)} style={{ background: `${T.gold}18`, border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={T.gold} stroke={T.gold} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      )}
+
+      {/* ── APPS ── */}
+      {activeTab === "apps" && (
+        <div style={{ animation: "tabSlide .2s ease" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <p style={{ fontSize: "13px", color: T.textMid, margin: 0 }}>Tes apps golf préférées</p>
+            <button onClick={() => setShowAddApp(v => !v)} style={{ display: "flex", alignItems: "center", gap: "6px", background: T.accent, color: "#fff", border: "none", borderRadius: T.radiusSm, padding: "7px 14px", fontSize: "12px", fontWeight: 500, cursor: "pointer" }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+              Ajouter
+            </button>
+          </div>
+
+          {/* Formulaire ajout app */}
+          {showAddApp && (
+            <div style={{ background: T.accentLight, border: `1.5px solid ${T.accent}33`, borderRadius: T.radius, padding: "16px 18px", marginBottom: "16px", animation: "slideDown .2s ease" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: T.accent, marginBottom: "12px" }}>Nouvelle application</div>
+              <input value={newAppName} onChange={e => setNewAppName(e.target.value)} placeholder="Nom de l'application…"
+                style={{ width: "100%", padding: "10px 14px", borderRadius: T.radiusSm, border: `1.5px solid ${T.accent}44`, background: T.surface, color: T.text, fontSize: "13px", outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box", marginBottom: "10px" }}
+              />
+              <input value={newAppNote} onChange={e => setNewAppNote(e.target.value)} placeholder="Note / description (optionnel)…"
+                style={{ width: "100%", padding: "10px 14px", borderRadius: T.radiusSm, border: `1.5px solid ${T.accent}44`, background: T.surface, color: T.text, fontSize: "13px", outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box", marginBottom: "10px" }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                <button onClick={() => setNewAppPaid(v => !v)} style={{ display: "flex", alignItems: "center", gap: "7px", background: newAppPaid ? `${T.gold}22` : T.surface, border: `1.5px solid ${newAppPaid ? T.gold : T.border}`, borderRadius: "8px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", color: newAppPaid ? T.gold : T.textMid, fontFamily: "'DM Sans',sans-serif", fontWeight: newAppPaid ? 600 : 400 }}>
+                  <span style={{ fontSize: "14px" }}>💰</span>
+                  {newAppPaid ? "Application payante ✓" : "Marquer comme payante"}
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={addApp} style={{ background: T.accent, color: "#fff", border: "none", borderRadius: T.radiusSm, padding: "9px 20px", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>Ajouter</button>
+                <button onClick={() => { setShowAddApp(false); setNewAppName(""); setNewAppNote(""); setNewAppPaid(false); }} style={{ background: "none", border: `1.5px solid ${T.border}`, borderRadius: T.radiusSm, padding: "9px 14px", fontSize: "13px", color: T.textMid, cursor: "pointer" }}>Annuler</button>
+              </div>
+            </div>
+          )}
+
+          {/* Liste apps */}
+          {favApps.length === 0
+            ? <div style={{ textAlign: "center", padding: "36px 20px" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 12px" }}><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+                <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", color: T.textMid, marginBottom: "6px" }}>Aucune app ajoutée</p>
+                <p style={{ fontSize: "12px", color: T.textLight }}>Partage tes apps golf préférées</p>
+              </div>
+            : <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {favApps.map(app => (
+                  <div key={app.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "12px", background: app.paid ? `${T.gold}18` : `${T.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: app.paid ? `1.5px solid ${T.gold}44` : "none" }}>
+                      <span style={{ fontSize: "20px" }}>{app.paid ? "💰" : "📱"}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 500, color: T.text }}>{app.name}</span>
+                        {app.paid && <span style={{ fontSize: "10px", color: T.gold, background: `${T.gold}18`, border: `1px solid ${T.gold}44`, borderRadius: "5px", padding: "1px 6px", fontWeight: 600 }}>★ Payante</span>}
+                      </div>
+                      {app.note && <div style={{ fontSize: "12px", color: T.textLight, marginTop: "2px" }}>{app.note}</div>}
+                    </div>
+                    <button onClick={() => removeApp(app.id)} style={{ background: "none", border: "none", cursor: "pointer", color: T.textLight, padding: "4px", borderRadius: "6px", fontSize: "16px" }}>×</button>
+                  </div>
+                ))}
+              </div>
+          }
+          <p style={{ fontSize: "11px", color: T.textLight, marginTop: "16px", fontStyle: "italic", textAlign: "center" }}>💡 L'astérisque ★ signale les apps payantes</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── PROFILE TAB ─────────────────────────────────────────────────────────────
 function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogout, onDeleteAccount, notify }) {
   const p = profiles[currentUser.uid] || {};
@@ -1417,6 +1679,8 @@ function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogou
   const [tee,            setTee]            = useState(p.tee || "");
   const [profilePublic,  setProfilePublic]  = useState(p.profilePublic !== false);
   const [favorites,      setFavorites]      = useState(p.favorites || []);
+  const [favGolfs,       setFavGolfs]       = useState(p.favGolfs || []);
+  const [favApps,        setFavApps]        = useState(p.favApps || []);
   const [editingPw,      setEditingPw]      = useState(false);
   const [pwCurrent,      setPwCurrent]      = useState("");
   const [pwNew,          setPwNew]          = useState("");
@@ -1450,7 +1714,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogou
   function handleSave() {
     if (phone && !isValidPhone(phone)) { notify("Numéro de téléphone invalide (10 chiffres requis)"); return; }
     if (email && !isValidEmail(email)) { notify("Adresse email invalide"); return; }
-    const updated = { ...p, photo, firstName, lastName, genre, phone: phone.replace(/\D/g,""), email, index, tee, profilePublic, favorites, lang };
+    const updated = { ...p, photo, firstName, lastName, genre, phone: phone.replace(/\D/g,""), email, index, tee, profilePublic, favorites, favGolfs, favApps, lang };
     onSave(updated, { pwCurrent, pwNew, pwConfirm });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
   }
@@ -1637,26 +1901,17 @@ function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogou
 
       {/* ── FAVORIS ── */}
       {activeSection === "favoris" && (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" }}>
-            <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "18px", fontWeight: 500, color: T.text }}>Mes partenaires favoris</h3>
-            <span style={{ fontSize: "12px", color: T.textLight }}>{favProfiles.length} favoris</span>
-          </div>
-          {favProfiles.length === 0
-            ? <div style={{ textAlign: "center", padding: "48px 20px" }}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 14px" }}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucun favori</p>
-                <p style={{ fontSize: "13px", color: T.textLight }}>Ajoutez des favoris depuis l'onglet "L'équipe"</p>
-              </div>
-            : <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                {favProfiles.map(pr => (
-                  <MemberCard key={pr.uid} profile={pr} currentUser={currentUser} isFavorite={true}
-                    onToggleFavorite={uid => setFavorites(prev => prev.filter(f => f !== uid))}
-                  />
-                ))}
-              </div>
-          }
-        </div>
+        <FavorisSection
+          profiles={profiles} currentUser={currentUser}
+          favorites={favorites} setFavorites={setFavorites}
+          favGolfs={favGolfs} setFavGolfs={setFavGolfs}
+          favApps={favApps} setFavApps={setFavApps}
+          favProfiles={favProfiles}
+          onSaveAll={() => {
+            const p2 = profiles[currentUser.uid] || {};
+            onSave({ ...p2, favorites, favGolfs, favApps }, null);
+          }}
+        />
       )}
 
       {/* ── AGENDA ── */}
