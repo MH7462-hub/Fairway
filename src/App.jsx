@@ -427,10 +427,18 @@ const G = () => (
     ::-webkit-scrollbar-track{background:transparent;}
     ::-webkit-scrollbar-thumb{background:${T.borderStrong};border-radius:4px;}
     @keyframes slideUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
     @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    @keyframes scaleIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+    @keyframes bubbleIn{from{opacity:0;transform:scale(.85) translateY(6px);}to{opacity:1;transform:scale(1) translateY(0);}}
     @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px) scale(.97);}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
-    .chover{transition:box-shadow .2s,transform .2s;}
-    .chover:hover{box-shadow:${T.shadowMd};transform:translateY(-1px);}
+    @keyframes tabSlide{from{opacity:0;transform:translateX(10px);}to{opacity:1;transform:translateX(0);}}
+    .chover{transition:box-shadow .22s,transform .22s;}
+    .chover:hover{box-shadow:${T.shadowMd};transform:translateY(-2px);}
+    .slot-card{transition:box-shadow .22s,transform .22s;}
+    .slot-card:hover{box-shadow:0 8px 32px rgba(28,74,48,0.14);transform:translateY(-2px);}
+    .bubble-in{animation:bubbleIn .18s cubic-bezier(.22,1,.36,1) both;}
+    .tab-enter{animation:tabSlide .22s cubic-bezier(.22,1,.36,1) both;}
     .pthumb:hover img{transform:scale(1.05);}
     .gbtn:hover{background:${T.surfaceAlt}!important;}
     input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
@@ -788,13 +796,14 @@ function ScoreCalculator({ playerIndex, notify }) {
   );
 }
 
-// ─── SLOT CHAT ───────────────────────────────────────────────────────────────
+// ─── SLOT CHAT — Bulles iMessage ─────────────────────────────────────────────
 function SlotChat({ slotId, profiles, currentUser }) {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
-  const bottomRef = useRef();
+  const [input,    setInput]    = useState("");
+  const [open,     setOpen]     = useState(false);
+  const [unread,   setUnread]   = useState(0);
+  const bottomRef   = useRef();
+  const inputRef    = useRef();
   const lastSeenRef = useRef(0);
 
   useEffect(() => {
@@ -815,7 +824,10 @@ function SlotChat({ slotId, profiles, currentUser }) {
     if (open) {
       setUnread(0);
       lastSeenRef.current = Date.now();
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        inputRef.current?.focus();
+      }, 100);
     }
   }, [open, messages]);
 
@@ -824,40 +836,94 @@ function SlotChat({ slotId, profiles, currentUser }) {
     if (!txt) return;
     setInput("");
     await fbSet(`chats/${slotId}/messages/${Date.now()}_${currentUser.uid}`, {
-      author: currentUser.uid,
-      text: txt,
-      createdAt: new Date().toISOString(),
+      author: currentUser.uid, text: txt, createdAt: new Date().toISOString(),
     });
   }
 
-  const act = ACTIVITY_TYPES[0];
+  function formatTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  // Groupe les messages consécutifs du même auteur
+  function groupMessages(msgs) {
+    const groups = [];
+    msgs.forEach((m, i) => {
+      const prev = msgs[i - 1];
+      const sameAuthor = prev && prev.author === m.author;
+      const closeInTime = prev && (new Date(m.createdAt) - new Date(prev.createdAt)) < 60000;
+      if (sameAuthor && closeInTime) {
+        groups[groups.length - 1].push(m);
+      } else {
+        groups.push([m]);
+      }
+    });
+    return groups;
+  }
 
   return (
-    <div style={{ marginTop: "12px", borderTop: `1px solid ${T.border}`, paddingTop: "10px" }}>
-      <button onClick={() => setOpen(v => !v)} style={{ display: "flex", alignItems: "center", gap: "7px", background: "none", border: "none", cursor: "pointer", padding: "4px 0", color: T.textMid, fontFamily: "'DM Sans',sans-serif", fontSize: "12px" }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={open ? T.accent : T.textMid} strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span style={{ color: open ? T.accent : T.textMid, fontWeight: open ? 500 : 400 }}>
-          {open ? "Fermer le chat" : "Chat du groupe"}
-        </span>
-        {messages.length > 0 && !open && <span style={{ fontSize: "11px", color: T.textLight }}>({messages.length})</span>}
-        {unread > 0 && !open && <span style={{ background: T.accent, color: "#fff", borderRadius: "50%", width: "16px", height: "16px", fontSize: "9px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unread}</span>}
+    <div style={{ marginTop: "0" }}>
+      {/* Bouton toggle chat */}
+      <button onClick={() => setOpen(v => !v)}
+        style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", background: open ? T.accentLight : "transparent", border: "none", borderTop: `1px solid ${T.border}`, cursor: "pointer", padding: "10px 20px", color: open ? T.accent : T.textMid, fontFamily: "'DM Sans',sans-serif", fontSize: "13px", fontWeight: 500, transition: "background .15s" }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>{open ? "Fermer le chat" : "Chat du groupe"}</span>
+        {messages.length > 0 && !open && <span style={{ fontSize: "11px", color: T.textLight, fontWeight: 400 }}>{messages.length} message{messages.length > 1 ? "s" : ""}</span>}
+        {unread > 0 && !open && (
+          <span style={{ marginLeft: "auto", background: T.accent, color: "#fff", borderRadius: "10px", padding: "1px 7px", fontSize: "10px", fontWeight: 700 }}>{unread} nouveau{unread > 1 ? "x" : ""}</span>
+        )}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: "auto", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}><path d="M6 9l6 6 6-6"/></svg>
       </button>
+
+      {/* Zone de chat */}
       {open && (
-        <div style={{ marginTop: "10px" }}>
-          <div style={{ maxHeight: "220px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", padding: "10px", background: T.surfaceAlt, borderRadius: T.radiusSm, marginBottom: "8px", border: `1px solid ${T.border}` }}>
+        <div style={{ animation: "slideDown .2s cubic-bezier(.22,1,.36,1)", borderTop: `1px solid ${T.border}` }}>
+          {/* Messages */}
+          <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "2px", padding: "16px 16px 8px", background: `linear-gradient(to bottom, ${T.surfaceAlt}, ${T.surface})` }}>
             {messages.length === 0
-              ? <div style={{ textAlign: "center", padding: "20px 0", color: T.textLight, fontSize: "12px", fontStyle: "italic" }}>Lancez la conversation !</div>
-              : messages.map(m => {
-                const isMine = m.author === currentUser.uid;
-                const p = profiles[m.author];
+              ? (
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 8px" }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <p style={{ fontSize: "12px", color: T.textLight, fontStyle: "italic", margin: 0 }}>Lancez la conversation !</p>
+                </div>
+              )
+              : groupMessages(messages).map((group, gi) => {
+                const isMine = group[0].author === currentUser.uid;
+                const p = profiles[group[0].author];
                 return (
-                  <div key={m.id} style={{ display: "flex", flexDirection: isMine ? "row-reverse" : "row", alignItems: "flex-end", gap: "7px" }}>
-                    {!isMine && <Ava profile={p} size={24} />}
-                    <div style={{ maxWidth: "75%" }}>
-                      {!isMine && <div style={{ fontSize: "10px", color: T.textLight, marginBottom: "3px", paddingLeft: "4px" }}>{p?.firstName || m.author}</div>}
-                      <div style={{ padding: "8px 12px", borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isMine ? T.accent : T.surface, color: isMine ? "#fff" : T.text, fontSize: "13px", lineHeight: 1.45, fontFamily: "'DM Sans',sans-serif", wordBreak: "break-word" }}>
-                        {m.text}
-                      </div>
+                  <div key={gi} style={{ display: "flex", flexDirection: isMine ? "row-reverse" : "row", alignItems: "flex-end", gap: "6px", marginBottom: "8px" }}>
+                    {/* Avatar — seulement pour les autres, une fois par groupe */}
+                    {!isMine && <div style={{ flexShrink: 0, alignSelf: "flex-end" }}><Ava profile={p} size={26} /></div>}
+                    {isMine && <div style={{ width: "26px", flexShrink: 0 }} />}
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "72%", alignItems: isMine ? "flex-end" : "flex-start" }}>
+                      {/* Nom — une fois par groupe pour les autres */}
+                      {!isMine && <span style={{ fontSize: "10px", color: T.textLight, paddingLeft: "10px", marginBottom: "2px" }}>{p?.firstName || group[0].author}</span>}
+
+                      {group.map((m, mi) => {
+                        const isFirst = mi === 0;
+                        const isLast  = mi === group.length - 1;
+                        const br = isMine
+                          ? `${isFirst ? 16 : 6}px ${isFirst ? 16 : 6}px ${isLast ? 4 : 6}px 16px`
+                          : `${isFirst ? 16 : 6}px ${isFirst ? 16 : 6}px 16px ${isLast ? 4 : 6}px`;
+                        return (
+                          <div key={m.id} className="bubble-in" style={{
+                            padding: "9px 14px",
+                            borderRadius: br,
+                            background: isMine ? T.accent : T.surface,
+                            color: isMine ? "#fff" : T.text,
+                            fontSize: "13.5px",
+                            lineHeight: 1.45,
+                            fontFamily: "'DM Sans',sans-serif",
+                            wordBreak: "break-word",
+                            boxShadow: isMine ? `0 2px 8px ${T.accent}33` : `0 1px 4px rgba(0,0,0,0.07)`,
+                            border: isMine ? "none" : `1px solid ${T.border}`,
+                          }}>
+                            {m.text}
+                            {isLast && <span style={{ display: "block", fontSize: "9px", opacity: 0.55, marginTop: "3px", textAlign: isMine ? "right" : "left" }}>{formatTime(m.createdAt)}</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -865,14 +931,24 @@ function SlotChat({ slotId, profiles, currentUser }) {
             }
             <div ref={bottomRef} />
           </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())} placeholder="Votre message…" maxLength={400}
-              style={{ flex: 1, padding: "10px 14px", borderRadius: "20px", border: `1.5px solid ${T.border}`, background: T.surface, fontSize: "13px", fontFamily: "'DM Sans',sans-serif", outline: "none", color: T.text }}
-              onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border}
-            />
-            <button onClick={send} disabled={!input.trim()} style={{ width: "38px", height: "38px", borderRadius: "50%", background: input.trim() ? T.accent : T.border, border: "none", cursor: input.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/></svg>
-            </button>
+
+          {/* Input */}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", padding: "10px 14px 14px", background: T.surface, borderTop: `1px solid ${T.border}` }}>
+            <Ava profile={profiles[currentUser.uid]} size={28} />
+            <div style={{ flex: 1, display: "flex", alignItems: "center", background: T.surfaceAlt, borderRadius: "22px", border: `1.5px solid ${T.border}`, padding: "0 6px 0 14px", transition: "border-color .15s" }}
+              onFocusCapture={e => e.currentTarget.style.borderColor = T.accent}
+              onBlurCapture={e => e.currentTarget.style.borderColor = T.border}
+            >
+              <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), send())}
+                placeholder="Message…" maxLength={400}
+                style={{ flex: 1, border: "none", background: "transparent", fontSize: "13px", fontFamily: "'DM Sans',sans-serif", outline: "none", color: T.text, padding: "9px 0" }}
+              />
+              <button onClick={send} disabled={!input.trim()}
+                style={{ width: "32px", height: "32px", borderRadius: "50%", background: input.trim() ? T.accent : T.border, border: "none", cursor: input.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background .15s, transform .1s", transform: input.trim() ? "scale(1)" : "scale(.9)" }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -882,73 +958,129 @@ function SlotChat({ slotId, profiles, currentUser }) {
 
 // ─── SLOT CARD ───────────────────────────────────────────────────────────────
 function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete }) {
-  const activity = ACTIVITY_TYPES.find(a => a.id === slot.activityType) || ACTIVITY_TYPES[0];
-  const isFull   = slot.participants.length >= (slot.maxPlayers || 4);
-  const hasJoined= slot.participants.includes(currentUser.uid);
-  const isOwner  = slot.author === currentUser.uid;
-  const showPlayers = activity.hasMaxPlayers !== false;
-  const pct      = slot.participants.length / (slot.maxPlayers || 4);
+  const activity   = ACTIVITY_TYPES.find(a => a.id === slot.activityType) || ACTIVITY_TYPES[0];
+  const isFull     = slot.participants.length >= (slot.maxPlayers || 4);
+  const hasJoined  = slot.participants.includes(currentUser.uid);
+  const isOwner    = slot.author === currentUser.uid;
+  const showPlayers= activity.hasMaxPlayers !== false;
+  const pct        = slot.participants.length / (slot.maxPlayers || 4);
   const authorProfile = profiles[slot.author];
+  const daysUntil  = Math.ceil((new Date(slot.date) - new Date()) / 86400000);
+  const isToday    = daysUntil <= 0 && daysUntil > -1;
+  const isTomorrow = daysUntil === 1;
 
   return (
-    <div className="chover" style={{ background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, padding: "20px", boxShadow: T.shadow }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        <div style={{ flex: 1, minWidth: 0, paddingRight: "12px" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: activity.colorLight, borderRadius: "6px", padding: "3px 9px", marginBottom: "7px" }}>
-            {activity.icon(activity.color)}
-            <span style={{ fontSize: "11px", fontWeight: 600, color: activity.color, letterSpacing: "0.03em" }}>{activity.label}</span>
-          </div>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "16px", fontWeight: 500, color: T.text, marginBottom: "5px", lineHeight: 1.3 }}>
-            {slot.activityType === "parcours" && slot.course ? slot.course : (slot.location || activity.desc)}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: T.textMid, fontSize: "13px", flexWrap: "wrap" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>{formatDate(slot.date)}</span>
-            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>{slot.time}</span>
-          </div>
-        </div>
-        {showPlayers && <div style={{ background: isFull ? T.dangerLight : activity.colorLight, color: isFull ? T.danger : activity.color, borderRadius: "6px", padding: "4px 10px", fontSize: "12px", fontWeight: 500, whiteSpace: "nowrap", flexShrink: 0 }}>{slot.participants.length}/{slot.maxPlayers || 4}</div>}
-      </div>
+    <div className="slot-card" style={{ background: T.surface, borderRadius: "16px", border: `1.5px solid ${T.border}`, overflow: "hidden", boxShadow: "0 2px 12px rgba(28,74,48,0.07)", animation: "slideUp .25s cubic-bezier(.22,1,.36,1)" }}>
 
-      {showPlayers && <div style={{ height: "3px", background: T.surfaceAlt, borderRadius: "2px", marginBottom: "14px", overflow: "hidden" }}><div style={{ height: "100%", width: `${pct * 100}%`, borderRadius: "2px", background: isFull ? T.danger : activity.color, transition: "width .4s" }} /></div>}
+      {/* Bandeau couleur activité */}
+      <div style={{ background: `linear-gradient(135deg, ${activity.color}18, ${activity.color}08)`, borderBottom: `1.5px solid ${activity.color}22`, padding: "16px 20px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Badge activité */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: activity.colorLight, borderRadius: "8px", padding: "4px 10px", marginBottom: "10px", border: `1px solid ${activity.color}33` }}>
+              {activity.icon(activity.color)}
+              <span style={{ fontSize: "11px", fontWeight: 700, color: activity.color, letterSpacing: "0.04em", textTransform: "uppercase" }}>{activity.label}</span>
+            </div>
 
-      {showPlayers && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", flexWrap: "wrap" }}>
-          {slot.participants.map(uid => {
-            const p = profiles[uid];
-            return (
-              <div key={uid} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <Ava profile={p} size={22} />
-                <span style={{ fontSize: "12px", color: uid === currentUser.uid ? activity.color : T.textMid, fontWeight: uid === currentUser.uid ? 500 : 400 }}>{p?.firstName || uid}</span>
+            {/* Titre */}
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "17px", fontWeight: 500, color: T.text, lineHeight: 1.3, marginBottom: "8px" }}>
+              {slot.activityType === "parcours" && slot.course ? slot.course.split(" – ")[0] : (slot.location || activity.desc)}
+            </div>
+
+            {/* Date + heure */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px", background: isToday ? `${T.gold}22` : isTomorrow ? `${T.accent}15` : T.surfaceAlt, borderRadius: "6px", padding: "4px 10px" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={isToday ? T.gold : T.accent} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: isToday ? T.gold : T.accent }}>
+                  {isToday ? "Aujourd'hui" : isTomorrow ? "Demain" : formatDate(slot.date)}
+                </span>
               </div>
-            );
-          })}
-          {Array.from({ length: (slot.maxPlayers || 4) - slot.participants.length }).map((_, i) => (
-            <div key={i} style={{ width: "22px", height: "22px", borderRadius: "50%", border: `1.5px dashed ${T.borderStrong}`, opacity: .4 }} />
-          ))}
-        </div>
-      )}
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <span style={{ fontSize: "12px", color: T.textMid, fontWeight: 500 }}>{slot.time}</span>
+              </div>
+            </div>
+          </div>
 
-      {!showPlayers && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
-          <Ava profile={authorProfile} size={22} />
-          <span style={{ fontSize: "12px", color: T.textMid }}>{authorProfile?.firstName || slot.author} s'entraîne</span>
-        </div>
-      )}
-
-      {slot.note && <p style={{ fontSize: "13px", color: T.textMid, fontStyle: "italic", padding: "10px 12px", background: T.surfaceAlt, borderRadius: T.radiusSm, marginBottom: "14px", lineHeight: 1.5 }}>«&nbsp;{slot.note}&nbsp;»</p>}
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <Ava profile={authorProfile} size={18} />
-          <span style={{ fontSize: "11px", color: T.textLight }}>Par {authorProfile?.firstName || slot.author}</span>
-        </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {isOwner && <Btn variant="ghost" style={{ padding: "6px 12px", fontSize: "12px", color: T.danger, borderColor: T.dangerLight }} onClick={() => onDelete(slot.id)}>Annuler</Btn>}
-          {!isOwner && showPlayers && hasJoined && <Btn variant="ghost" style={{ padding: "6px 12px", fontSize: "12px" }} onClick={() => onLeave(slot.id)}>Se désister</Btn>}
-          {!isOwner && showPlayers && !hasJoined && !isFull && <Btn variant="primary" style={{ padding: "7px 16px", fontSize: "13px", background: activity.color }} onClick={() => onJoin(slot.id)}>Rejoindre</Btn>}
-          {!isOwner && showPlayers && !hasJoined && isFull && <span style={{ fontSize: "12px", color: T.textLight, fontStyle: "italic" }}>Complet</span>}
+          {/* Compteur joueurs */}
+          {showPlayers && (
+            <div style={{ flexShrink: 0, marginLeft: "12px", textAlign: "center" }}>
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: isFull ? T.dangerLight : `${activity.color}18`, border: `2px solid ${isFull ? T.danger : activity.color}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: "15px", fontWeight: 700, color: isFull ? T.danger : activity.color, lineHeight: 1 }}>{slot.participants.length}</span>
+                <span style={{ fontSize: "8px", color: isFull ? T.danger : activity.color, opacity: 0.7 }}>/{slot.maxPlayers || 4}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Corps de la carte */}
+      <div style={{ padding: "14px 20px" }}>
+        {/* Barre de progression joueurs */}
+        {showPlayers && (
+          <div style={{ marginBottom: "14px" }}>
+            <div style={{ height: "4px", background: T.surfaceAlt, borderRadius: "2px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct * 100}%`, borderRadius: "2px", background: isFull ? T.danger : activity.color, transition: "width .5s cubic-bezier(.22,1,.36,1)" }} />
+            </div>
+          </div>
+        )}
+
+        {/* Participants */}
+        {showPlayers && (
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", flexWrap: "wrap" }}>
+            {slot.participants.map(uid => {
+              const p = profiles[uid];
+              const isMe = uid === currentUser.uid;
+              return (
+                <div key={uid} style={{ display: "flex", alignItems: "center", gap: "5px", background: isMe ? `${activity.color}15` : T.surfaceAlt, borderRadius: "20px", padding: "3px 10px 3px 3px", border: isMe ? `1px solid ${activity.color}44` : "none" }}>
+                  <Ava profile={p} size={22} />
+                  <span style={{ fontSize: "12px", color: isMe ? activity.color : T.textMid, fontWeight: isMe ? 600 : 400 }}>{p?.firstName || uid}</span>
+                </div>
+              );
+            })}
+            {Array.from({ length: (slot.maxPlayers || 4) - slot.participants.length }).map((_, i) => (
+              <div key={i} style={{ width: "28px", height: "28px", borderRadius: "50%", border: `1.5px dashed ${T.borderStrong}`, opacity: .35, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Note */}
+        {slot.note && (
+          <div style={{ display: "flex", gap: "8px", padding: "10px 14px", background: T.surfaceAlt, borderRadius: "10px", marginBottom: "14px", borderLeft: `3px solid ${activity.color}` }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={activity.color} strokeWidth="2" style={{ flexShrink: 0, marginTop: "2px" }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <p style={{ fontSize: "13px", color: T.textMid, fontStyle: "italic", margin: 0, lineHeight: 1.5 }}>{slot.note}</p>
+          </div>
+        )}
+
+        {/* Footer : auteur + actions */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <Ava profile={authorProfile} size={20} />
+            <span style={{ fontSize: "11px", color: T.textLight }}>Par <span style={{ color: T.textMid, fontWeight: 500 }}>{authorProfile?.firstName || slot.author}</span></span>
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {isOwner && (
+              <button onClick={() => onDelete(slot.id)} style={{ fontSize: "12px", color: T.danger, background: T.dangerLight, border: "none", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>Annuler</button>
+            )}
+            {!isOwner && showPlayers && hasJoined && (
+              <button onClick={() => onLeave(slot.id)} style={{ fontSize: "12px", color: T.textMid, background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Se désister</button>
+            )}
+            {!isOwner && showPlayers && !hasJoined && !isFull && (
+              <button onClick={() => onJoin(slot.id)} style={{ fontSize: "13px", color: "#fff", background: activity.color, border: "none", borderRadius: "8px", padding: "8px 18px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 600, boxShadow: `0 2px 8px ${activity.color}44`, transition: "transform .1s, box-shadow .1s" }}
+                onMouseEnter={e => { e.currentTarget.style.transform="scale(1.04)"; e.currentTarget.style.boxShadow=`0 4px 16px ${activity.color}55`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.boxShadow=`0 2px 8px ${activity.color}44`; }}
+              >Rejoindre</button>
+            )}
+            {!isOwner && showPlayers && !hasJoined && isFull && (
+              <span style={{ fontSize: "12px", color: T.danger, background: T.dangerLight, padding: "6px 12px", borderRadius: "8px", fontWeight: 500 }}>Complet</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Chat en bulles */}
       <SlotChat slotId={slot.id} profiles={profiles} currentUser={currentUser} />
     </div>
   );
@@ -2047,7 +2179,7 @@ export default function App() {
 
           {/* ══ SLOTS ══ */}
           {tab === "slots" && (
-            <div style={{ animation: "slideUp .2s ease" }}>
+            <div style={{ animation: "slideUp .25s cubic-bezier(.22,1,.36,1)" }}>
               {/* Fond photo pleine page */}
               <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
                 <img src={GOLFER_BG} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", opacity: 0.13, display: "block" }} />
