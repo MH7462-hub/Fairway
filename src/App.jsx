@@ -136,7 +136,7 @@ const GOLF_BG_REVIEWS = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBD
 const TRANSLATIONS = {
   fr: {
     slots: "Slots", feedbacks: "Feedbacks", profile: "Profil",
-    upcoming: "À venir", noSlots: "Aucun créneau à venir",
+    upcoming: "À venir", noSlots: "Aucun slot à venir",
     join: "Rejoindre", leave: "Se désister", cancel: "Annuler", full: "Complet",
     proposeSlot: "Proposer un slot", newFeedback: "Nouveau feedback",
     today: "Aujourd'hui", tomorrow: "Demain",
@@ -2366,7 +2366,7 @@ export default function App() {
     const notifText = `${authorName} propose ${act.label.toLowerCase()}${s.course ? " · " + s.course.split(" – ")[0] : s.location ? " · " + s.location : ""} le ${dateStr} à ${slotTime}`;
     await fbSet(`notifs/${id}`, { id, type: slotActivity, text: notifText, author: currentUser.uid, teamId: myTeamId, readBy: [currentUser.uid], createdAt: new Date().toISOString(), expiresAt: notifExpiresAt(slotDate) });
     setShowSlot(false); setSlotNote(""); setSlotDate(""); setSlotTime(""); setSlotCourse(""); setSlotLocation("");
-    notify("Créneau proposé · Équipe notifiée ✓");
+    notify("Slot proposé · Équipe notifiée ✓");
   }
 
   async function handleJoin(id) {
@@ -2412,11 +2412,11 @@ export default function App() {
 
       if (editingRev) {
         await fbSet(`reviews/${editingRev.id}`, { ...editingRev, course: revCourse, rating: revRating, difficulty: revDiff, text: revText, tips: revTips, photos: finalPhotos, updatedAt: new Date().toISOString() });
-        notify("Avis modifié ✓");
+        notify("Feedback modifié ✓");
       } else {
         const id = Date.now().toString();
         await fbSet(`reviews/${id}`, { id, author: currentUser.uid, course: revCourse, rating: revRating, difficulty: revDiff, text: revText, tips: revTips, photos: finalPhotos, date: new Date().toLocaleDateString("fr-FR"), createdAt: new Date().toISOString() });
-        notify("Avis publié ✓");
+        notify("Feedback publié ✓");
       }
       setShowRev(false);
     } catch (err) {
@@ -2429,7 +2429,7 @@ export default function App() {
 
   function handleRevPhoto(e) {
     const files = Array.from(e.target.files);
-    if (revPhotos.length + files.length > 5) { notify("Maximum 5 photos par avis"); return; }
+    if (revPhotos.length + files.length > 5) { notify("Maximum 5 photos par feedback"); return; }
     files.forEach(f => {
       if (f.size > 30 * 1024 * 1024) { notify("Photo trop lourde (max 30 Mo)"); return; }
       // On stocke { file: File, preview: ObjectURL } — pas de base64, supporte HEIC
@@ -2560,7 +2560,7 @@ export default function App() {
                 {tab !== "profile" && (
                   <Btn variant="primary" style={{ padding: "7px 14px", fontSize: "13px", background: "rgba(232,223,200,0.15)", color: CREAM, border: `1px solid rgba(232,223,200,0.35)` }} onClick={() => tab === "slots" ? setShowSlot(true) : openNewReview()}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
-                    {tab === "slots" ? (myLang === "en" ? "Slot" : "Créneau") : (myLang === "en" ? "Feedback" : "Avis")}
+                    {tab === "slots" ? (myLang === "en" ? "Slot" : "Slot") : (myLang === "en" ? "Feedback" : "Feedback")}
                   </Btn>
                 )}
                 {/* Cloche */}
@@ -2759,7 +2759,7 @@ export default function App() {
         </main>
 
         {/* ── MODAL CRÉNEAU ── */}
-        <Modal open={showSlot} onClose={() => setShowSlot(false)} title="Proposer un créneau">
+        <Modal open={showSlot} onClose={() => setShowSlot(false)} title="Proposer un Slot">
           <Fld label="Type d'activité">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {ACTIVITY_TYPES.map(act => (
@@ -2799,7 +2799,7 @@ export default function App() {
         </Modal>
 
         {/* ── MODAL AVIS ── */}
-        <Modal open={showRev} onClose={() => setShowRev(false)} title={editingRev ? "Modifier l'avis" : "Nouvel avis"}>
+        <Modal open={showRev} onClose={() => setShowRev(false)} title={editingRev ? "Modifier le Feedback" : "Nouveau Feedback"}>
           <Fld label="Parcours"><CourseSel value={revCourse} onChange={setRevCourse} /></Fld>
           <Fld label="Note">
             <Stars value={revRating} size={28} onChange={setRevRating} />
@@ -2812,7 +2812,7 @@ export default function App() {
             </div>
             <span style={{ fontSize: "12px", color: T.accent }}>{DIFFICULTY_LABELS[revDiff]}</span>
           </Fld>
-          <Fld label="Mon avis"><Txta value={revText} onChange={e => setRevText(e.target.value)} placeholder="Partage ton expérience sur ce parcours…" rows={4} /></Fld>
+          <Fld label="Mon Feedback"><Txta value={revText} onChange={e => setRevText(e.target.value)} placeholder="Partage ton expérience sur ce parcours…" rows={4} /></Fld>
           <Fld label="Conseil (optionnel)"><Txta value={revTips} onChange={e => setRevTips(e.target.value)} placeholder="Un conseil pour bien jouer ce parcours…" rows={2} /></Fld>
           <Fld label={`Photos (${revPhotos.length}/5)`}>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
@@ -2845,7 +2845,7 @@ export default function App() {
             <p style={{ fontSize: "11px", color: T.textLight, margin: 0, fontStyle: "italic" }}>HEIC, JPG, PNG acceptés · Max 30 Mo par photo · Converti en JPG automatiquement</p>
           </Fld>
           <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px" }} onClick={handleSubmitReview}>
-            {editingRev ? "Enregistrer les modifications" : "Publier l'avis"}
+            {editingRev ? "Enregistrer les modifications" : "Publier le Feedback"}
           </Btn>
         </Modal>
       </div>
