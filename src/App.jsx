@@ -2478,71 +2478,95 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
     notify("Index enregistré ✓");
   }
 
+  const statItems = [
+    {
+      label:"Parties jouées", val:myPast.length, sub:"au total",
+      icon: (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3.5 18.5 7 7l4 5 4-8 4 14.5H3.5z" opacity=".25"/>
+          <path d="M2 19.5a.75.75 0 0 1 .72-.75h18.56a.75.75 0 0 1 0 1.5H2.72A.75.75 0 0 1 2 19.5z"/>
+          <path fillRule="evenodd" d="M6.53 5.5a.75.75 0 0 1 .72.53l3.35 10.56 3.1-6.2a.75.75 0 0 1 1.3-.07l2.6 4.33 2.63-8.62a.75.75 0 1 1 1.44.44l-3.25 10.65a.75.75 0 0 1-1.3.22L14.5 12.4l-3.2 6.4a.75.75 0 0 1-1.38-.07L6.47 7.44 4.26 14.5a.75.75 0 0 1-1.44-.44l2.75-8.03a.75.75 0 0 1 .96-.53z"/>
+        </svg>
+      ),
+      color: T.accent,
+    },
+    {
+      label:"Slots organisés", val:myCreated.length, sub:"créés par moi",
+      icon: (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 2a1 1 0 0 0-1 1v1H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1V3a1 1 0 1 0-2 0v1H7V3a1 1 0 0 0-1-1z" opacity=".3"/>
+          <path d="M2 9h20v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9z"/>
+          <path fill="white" d="M12 12a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1h-1a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1z"/>
+        </svg>
+      ),
+      color: "#2A5C6E",
+    },
+    {
+      label:"Membres joués", val:partners.size, sub:"partenaires distincts",
+      icon: (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="9" cy="7" r="4" opacity=".35"/>
+          <path d="M1 21v-1a8 8 0 0 1 8-8 8 8 0 0 1 8 8v1H1z" opacity=".35"/>
+          <circle cx="17" cy="8" r="3"/>
+          <path d="M13.5 21v-.5a6.5 6.5 0 0 1 7-6.49V21h-7z"/>
+        </svg>
+      ),
+      color: "#7C5C2A",
+    },
+    {
+      label:"Feedbacks", val:myReviews.length, sub:"publiés",
+      icon: (
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/>
+          <path fill="white" d="M7 9h10v1.5H7V9zm0 3.5h7V14H7v-1.5z"/>
+        </svg>
+      ),
+      color: "#5C2A6E",
+    },
+  ];
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
 
-      {/* ── Mes stats ── */}
-      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"16px" }}>Mes statistiques</h3>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
-          {[
-            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><path d="M3 17l4-12 4 5 4-8 4 15"/><path d="M3 20h18"/></svg>,"Parties jouées", myPast.length],
-            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,"Slots créés", myCreated.length],
-            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,"Membres joués", partners.size],
-            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,"Feedbacks", myReviews.length],
-          ].map(([icon,label,val])=>(
-            <div key={label} style={{ background:T.surfaceAlt, borderRadius:"10px", padding:"14px", textAlign:"center" }}>
-              <div style={{ display:"flex", justifyContent:"center", marginBottom:"8px" }}>{icon}</div>
-              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"24px", fontWeight:500, color:T.accent }}>{val}</div>
-              <div style={{ fontSize:"11px", color:T.textLight, marginTop:"2px" }}>{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ── Handicap tracker ── */}
-      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"14px" }}>Suivi de mon index</h3>
-        <div style={{ display:"flex", gap:"8px", marginBottom:"14px" }}>
-          <input
-            type="number" step="0.1" placeholder="Ex: 12.4"
-            value={newIndex} onChange={e=>setNewIndex(e.target.value)}
-            style={{ flex:1, padding:"9px 12px", borderRadius:T.radiusSm, border:`1.5px solid ${T.border}`, fontSize:"14px", fontFamily:"'DM Sans',sans-serif", outline:"none", background:T.surface, color:T.text }}
-          />
-          <button onClick={saveIndex} style={{ padding:"9px 18px", borderRadius:T.radiusSm, background:T.accent, color:"#fff", border:"none", fontSize:"13px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
-            Enregistrer
-          </button>
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"22px", boxShadow:T.shadow }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"18px" }}>
+          <div style={{ width:"38px", height:"38px", borderRadius:"11px", background:T.accentLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8" strokeLinecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          </div>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text }}>Suivi de mon index</div>
+            {indexHistory.length > 0 && <div style={{ fontSize:"12px", color:T.textLight }}>Actuel · <strong style={{ color:T.accent, fontWeight:700 }}>{indexHistory[indexHistory.length-1]?.value}</strong></div>}
+          </div>
         </div>
-        {indexHistory.length === 0 && (
-          <p style={{ fontSize:"13px", color:T.textLight, fontStyle:"italic" }}>Aucun index enregistré — commence à tracer ton évolution !</p>
-        )}
+        <div style={{ display:"flex", gap:"8px", marginBottom:"16px" }}>
+          <input type="number" step="0.1" placeholder="Nouvel index (ex: 12.4)" value={newIndex} onChange={e=>setNewIndex(e.target.value)}
+            style={{ flex:1, padding:"10px 14px", borderRadius:T.radiusSm, border:`1.5px solid ${T.border}`, fontSize:"14px", fontFamily:"'DM Sans',sans-serif", outline:"none", background:T.bg, color:T.text }} />
+          <button onClick={saveIndex} style={{ padding:"10px 20px", borderRadius:T.radiusSm, background:T.accent, color:"#fff", border:"none", fontSize:"13px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>Enregistrer</button>
+        </div>
+        {indexHistory.length === 0 && <p style={{ fontSize:"13px", color:T.textLight, fontStyle:"italic" }}>Aucun index enregistré pour l'instant.</p>}
         {indexHistory.length > 0 && (
           <>
-            {/* Mini graphe en barres */}
-            <div style={{ display:"flex", alignItems:"flex-end", gap:"4px", height:"60px", marginBottom:"8px" }}>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:"3px", height:"72px", marginBottom:"4px" }}>
               {indexHistory.slice(-12).map((e,i)=>{
-                const all  = indexHistory.slice(-12).map(x=>x.value);
-                const mn   = Math.min(...all)-1;
-                const mx   = Math.max(...all)+1;
-                const pct  = mx===mn ? 0.5 : (e.value-mn)/(mx-mn);
-                const h    = Math.max(8, Math.round(pct*52));
-                const isLast = i===indexHistory.slice(-12).length-1;
-                return (
-                  <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end" }}>
-                    <div style={{ width:"100%", height:`${h}px`, borderRadius:"4px 4px 0 0", background: isLast ? T.accent : T.accentLight, transition:"height .3s" }} title={`${e.value} — ${e.date}`} />
-                  </div>
-                );
+                const all=indexHistory.slice(-12).map(x=>x.value);
+                const mn=Math.min(...all)-0.5, mx=Math.max(...all)+0.5;
+                const pct=mx===mn?0.5:(e.value-mn)/(mx-mn);
+                const h=Math.max(10,Math.round(pct*64));
+                const isLast=i===indexHistory.slice(-12).length-1;
+                return <div key={i} title={`${e.value} — ${e.date}`} style={{ flex:1, height:`${h}px`, borderRadius:"4px 4px 0 0", background:isLast?T.accent:`${T.accent}2A`, transition:"height .3s" }}/>;
               })}
             </div>
-            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"10px", color:T.textLight, marginBottom:"12px" }}>
-              <span>{indexHistory.slice(-12)[0]?.date?.slice(5)}</span>
-              <span>Actuel : <strong style={{ color:T.accent }}>{indexHistory[indexHistory.length-1]?.value}</strong></span>
+            <div style={{ height:"1px", background:T.border, marginBottom:"10px" }}/>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"10px", color:T.textLight, marginBottom:"14px" }}>
+              <span>{new Date((indexHistory.slice(-12)[0]?.date||today)+"T00:00").toLocaleDateString("fr-FR",{month:"short",year:"numeric"})}</span>
+              <span>{indexHistory.length} entrée{indexHistory.length>1?"s":""}</span>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:"6px", maxHeight:"140px", overflowY:"auto" }}>
-              {[...indexHistory].reverse().slice(0,8).map((e,i)=>(
-                <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:"12px", padding:"6px 10px", background:T.surfaceAlt, borderRadius:"8px" }}>
-                  <span style={{ color:T.textMid }}>{formatDate(e.date)}</span>
-                  <span style={{ fontWeight:600, color:T.accent }}>Index {e.value}</span>
+            <div style={{ display:"flex", flexDirection:"column", gap:"4px", maxHeight:"130px", overflowY:"auto" }}>
+              {[...indexHistory].reverse().slice(0,6).map((e,i)=>(
+                <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 12px", background:i===0?T.accentLight:T.surfaceAlt, borderRadius:"8px", border:i===0?`1px solid ${T.accent}33`:"none" }}>
+                  <span style={{ fontSize:"12px", color:T.textMid }}>{new Date(e.date+"T00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}</span>
+                  <span style={{ fontSize:"13px", fontWeight:700, color:i===0?T.accent:T.textMid, fontFamily:"'Playfair Display',serif" }}>{e.value}</span>
                 </div>
               ))}
             </div>
@@ -2551,19 +2575,32 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
       </div>
 
       {/* ── Badges ── */}
-      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"14px" }}>Mes badges</h3>
-        {badges.length === 0 && (
-          <p style={{ fontSize:"13px", color:T.textLight, fontStyle:"italic" }}>Joue avec l'équipe pour débloquer tes premiers badges !</p>
-        )}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:"10px" }}>
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"22px", boxShadow:T.shadow }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"20px" }}>
+          <div style={{ width:"38px", height:"38px", borderRadius:"11px", background:T.goldLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="1.8" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text }}>Mes badges</div>
+            <div style={{ fontSize:"12px", color:T.textLight }}>{badges.length} / {BADGES.length} débloqué{badges.length>1?"s":""}</div>
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
           {BADGES.map(b=>{
-            const unlocked = badges.some(ub=>ub.id===b.id);
+            const unlocked=badges.some(ub=>ub.id===b.id);
             return (
-              <div key={b.id} style={{ background: unlocked ? T.accentLight : T.surfaceAlt, borderRadius:"12px", padding:"14px 12px", textAlign:"center", border:`1.5px solid ${unlocked ? T.accent+"44" : T.border}`, opacity: unlocked ? 1 : 0.45, transition:"all .2s" }}>
-                <div style={{ fontSize:"26px", marginBottom:"6px" }}>{b.icon}</div>
-                <div style={{ fontSize:"12px", fontWeight:600, color: unlocked ? T.accent : T.textMid, marginBottom:"3px" }}>{b.label}</div>
+              <div key={b.id} style={{ borderRadius:"16px", padding:"14px 10px 12px", background:T.surface, border:`1.5px solid ${unlocked?T.accent+"33":T.border}`, opacity:unlocked?1:0.38, transition:"all .2s", boxShadow:unlocked?`0 4px 20px ${T.accent}15`:T.shadow, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:"8px" }}>
+                {/* Badge image pleine */}
+                <BadgeIcon id={b.id} size={80} grayscale={!unlocked} />
+                <div style={{ fontSize:"11px", fontWeight:700, color:unlocked?T.accent:T.textMid, lineHeight:1.3 }}>{b.label}</div>
                 <div style={{ fontSize:"10px", color:T.textLight, lineHeight:1.3 }}>{b.desc}</div>
+                {/* Indicateur débloqué/verrouillé */}
+                <div style={{ position:"absolute", top:"8px", right:"8px" }}>
+                  {unlocked
+                    ? <div style={{ width:"18px", height:"18px", borderRadius:"50%", background:T.accent, display:"flex", alignItems:"center", justifyContent:"center" }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6 9 17l-5-5"/></svg></div>
+                    : <div style={{ width:"18px", height:"18px", borderRadius:"50%", background:T.surfaceAlt, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center" }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={T.borderStrong} strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                  }
+                </div>
               </div>
             );
           })}
@@ -2571,25 +2608,99 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
       </div>
 
       {/* ── Classement équipe ── */}
-      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"14px" }}>Classement équipe</h3>
-        <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-          {rankingPlayed.map((p,i)=>{
-            const isMe = p.uid===currentUser.uid;
-            const medals = ["🥇","🥈","🥉"];
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, overflow:"hidden", boxShadow:T.shadow }}>
+        {/* Header vert foncé */}
+        <div style={{ background:T.accent, padding:"20px 22px 22px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"22px" }}>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"17px", fontWeight:500, color:"#fff", letterSpacing:"0.02em" }}>Classement équipe</div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.8"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+          </div>
+
+          {/* Podium top 3 */}
+          {rankingPlayed.length >= 1 && (() => {
+            const top = rankingPlayed.slice(0,3);
+            const order = top.length >= 3 ? [top[1], top[0], top[2]] : top.length === 2 ? [top[1], top[0]] : [top[0]];
+            const heights = ["64px", "80px", "56px"];
+            const medals = [
+              { label:"2", color:"#C0C0C0", size:34 },
+              { label:"1", color:T.gold,    size:42 },
+              { label:"3", color:"#CD7F32", size:30 },
+            ];
             return (
-              <div key={p.uid} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", background: isMe ? T.accentLight : T.surfaceAlt, borderRadius:"10px", border: isMe ? `1.5px solid ${T.accent}44` : "none" }}>
-                <span style={{ fontSize:"18px", width:"24px", textAlign:"center" }}>{medals[i] || `${i+1}`}</span>
-                <Ava profile={p} size={32}/>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:"13px", fontWeight:600, color:T.text }}>{p.firstName} {p.lastName || ""}</div>
-                  {p.index && <div style={{ fontSize:"11px", color:T.textLight }}>Index {p.index}</div>}
-                </div>
-                <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color: isMe ? T.accent : T.textMid }}>{p.count}</span>
+              <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"center", gap:"12px" }}>
+                {order.map((p, pos) => {
+                  const realRank = top.indexOf(p);
+                  const isMe = p.uid === currentUser.uid;
+                  const m = medals[pos];
+                  const barH = heights[pos];
+                  return (
+                    <div key={p.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"8px", flex: pos===1 ? "0 0 100px" : "0 0 78px" }}>
+                      {/* Nom */}
+                      <div style={{ fontSize:"11px", fontWeight:600, color: isMe ? T.gold : "rgba(255,255,255,0.9)", textAlign:"center", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%", fontFamily:"'DM Sans',sans-serif" }}>
+                        {p.firstName}{isMe?" · moi":""}
+                      </div>
+                      {/* Avatar + médaille */}
+                      <div style={{ position:"relative" }}>
+                        <div style={{ borderRadius:"50%", border:`3px solid ${m.color}`, boxShadow:`0 0 0 1px ${m.color}44, 0 4px 12px rgba(0,0,0,0.2)` }}>
+                          <Ava profile={p} size={m.size}/>
+                        </div>
+                        <div style={{ position:"absolute", bottom:"-6px", left:"50%", transform:"translateX(-50%)", width:"18px", height:"18px", borderRadius:"50%", background:m.color, display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff", boxShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
+                          <span style={{ fontSize:"9px", fontWeight:800, color: pos===1 ? "#7A5B00" : "#fff", lineHeight:1 }}>{realRank+1}</span>
+                        </div>
+                      </div>
+                      {/* Barre podium */}
+                      <div style={{ width:"100%", height:barH, background: pos===1 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)", borderRadius:"8px 8px 0 0", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"2px", marginBottom:"-1px" }}>
+                        <div style={{ fontFamily:"'Playfair Display',serif", fontSize: pos===1?"22px":"18px", fontWeight:600, color: pos===1 ? "#fff" : "rgba(255,255,255,0.8)", lineHeight:1 }}>{p.count}</div>
+                        <div style={{ fontSize:"9px", color:"rgba(255,255,255,0.5)", letterSpacing:"0.05em", textTransform:"uppercase" }}>parties</div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
-          })}
+          })()}
         </div>
+
+        {/* Reste du classement (4e et +) */}
+        {rankingPlayed.length > 3 && (
+          <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:"2px" }}>
+            {rankingPlayed.slice(3).map((p,i)=>{
+              const isMe = p.uid===currentUser.uid;
+              const rank = i+4;
+              return (
+                <div key={p.uid} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 12px", background: isMe ? T.accentLight : "transparent", borderRadius:"10px", border: isMe ? `1px solid ${T.accent}33` : "none" }}>
+                  <span style={{ fontSize:"12px", fontWeight:700, color:T.textLight, width:"20px", textAlign:"center", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>{rank}</span>
+                  <Ava profile={p} size={30}/>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:"13px", fontWeight: isMe?600:400, color:isMe?T.accent:T.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.firstName} {p.lastName||""}{isMe?" · moi":""}</div>
+                    {p.index && <div style={{ fontSize:"10px", color:T.textLight }}>Index {p.index}</div>}
+                  </div>
+                  <div style={{ textAlign:"right", flexShrink:0 }}>
+                    <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:isMe?T.accent:T.textMid }}>{p.count}</span>
+                    <span style={{ fontSize:"10px", color:T.textLight, marginLeft:"3px" }}>pts</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+
+      {/* ── Mes statistiques détaillées ── */}
+      {/* ── Stats — 4 tuiles premium ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+        {statItems.map(({ label, val, sub, icon, color }) => (
+          <div key={label} style={{ background:T.surface, borderRadius:"16px", border:`1.5px solid ${T.border}`, padding:"20px 16px", boxShadow:T.shadow, position:"relative", overflow:"hidden" }}>
+            <div style={{ position:"absolute", top:"-16px", right:"-16px", width:"68px", height:"68px", borderRadius:"50%", background:`${color}0D`, pointerEvents:"none" }}/>
+            <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:`${color}18`, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"14px", color }}>
+              {icon}
+            </div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"38px", fontWeight:500, color, lineHeight:1, marginBottom:"5px" }}>{val}</div>
+            <div style={{ fontSize:"13px", fontWeight:600, color:T.text, marginBottom:"2px" }}>{label}</div>
+            <div style={{ fontSize:"11px", color:T.textLight }}>{sub}</div>
+          </div>
+        ))}
       </div>
 
     </div>
@@ -2624,16 +2735,48 @@ function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, 
 
 
 // ─── BADGES ──────────────────────────────────────────────────────────────────
+// Icônes SVG pour chaque badge — rendu inline selon couleur
+// Badge images — fichiers dans /public/badges/
+const BADGE_IMAGES = {
+  first_slot:    "/badges/badge_first_slot.jpeg",
+  slot_10:       "/badges/badge_slot_10.jpeg",
+  slot_50:       "/badges/badge_slot_50.jpeg",
+  creator_5:     "/badges/badge_creator_5.jpeg",
+  social:        "/badges/badge_social.jpeg",
+  reviewer:      "/badges/badge_reviewer.jpeg",
+  early_bird:    "/badges/badge_early_bird.jpeg",
+  index_tracker: "/badges/badge_index_tracker.jpeg",
+  team_player:   "/badges/badge_team_player.jpeg",
+};
+
+function BadgeIcon({ id, size = 56, grayscale = false }) {
+  const src = BADGE_IMAGES[id];
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt={id}
+      style={{
+        width: size, height: size,
+        borderRadius: "10px",
+        objectFit: "cover",
+        filter: grayscale ? "grayscale(100%) opacity(0.4)" : "none",
+        display: "block",
+      }}
+    />
+  );
+}
+
 const BADGES = [
-  { id:"first_slot",    icon:"⛳", label:"Premier départ",     desc:"A rejoint son premier slot",          condition:(stats)=>stats.played>=1 },
-  { id:"slot_10",       icon:"🏌️", label:"Golfeur régulier",   desc:"10 parties jouées",                  condition:(stats)=>stats.played>=10 },
-  { id:"slot_50",       icon:"🏆", label:"50 parties jouées",  desc:"Un vrai habitué du parcours",        condition:(stats)=>stats.played>=50 },
-  { id:"creator_5",     icon:"📅", label:"Organisateur",       desc:"A créé 5 slots",                     condition:(stats)=>stats.created>=5 },
-  { id:"social",        icon:"🤝", label:"Social Butterfly",   desc:"A joué avec 5 membres différents",   condition:(stats)=>stats.partners>=5 },
-  { id:"reviewer",      icon:"✍️", label:"Critique golf",      desc:"A publié 3 feedbacks",               condition:(stats)=>stats.reviews>=3 },
-  { id:"early_bird",    icon:"🌅", label:"Lève-tôt",           desc:"A joué avant 8h",                   condition:(stats)=>stats.earlyBird>=1 },
-  { id:"index_tracker", icon:"📈", label:"Index Tracker",      desc:"A enregistré 5 index",               condition:(stats)=>stats.indexEntries>=5 },
-  { id:"team_player",   icon:"👥", label:"Esprit d'équipe",    desc:"Membre d'une équipe",                condition:(stats)=>stats.inTeam },
+  { id:"first_slot",    label:"Premier départ",   desc:"Premier slot rejoint",          condition:(stats)=>stats.played>=1 },
+  { id:"slot_10",       label:"Régulier",          desc:"10 parties jouées",             condition:(stats)=>stats.played>=10 },
+  { id:"slot_50",       label:"50 parties",        desc:"Un vrai habitué",               condition:(stats)=>stats.played>=50 },
+  { id:"creator_5",     label:"Organisateur",      desc:"5 slots créés",                 condition:(stats)=>stats.created>=5 },
+  { id:"social",        label:"Social",            desc:"5 membres différents",          condition:(stats)=>stats.partners>=5 },
+  { id:"reviewer",      label:"Critique",          desc:"3 feedbacks publiés",           condition:(stats)=>stats.reviews>=3 },
+  { id:"early_bird",    label:"Lève-tôt",          desc:"Parti avant 8h",               condition:(stats)=>stats.earlyBird>=1 },
+  { id:"index_tracker", label:"Index Tracker",     desc:"5 index enregistrés",           condition:(stats)=>stats.indexEntries>=5 },
+  { id:"team_player",   label:"Équipier",          desc:"Membre d'une équipe",           condition:(stats)=>stats.inTeam },
 ];
 
 function computeBadges(uid, slots, reviews, profiles, memberships) {
