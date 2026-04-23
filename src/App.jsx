@@ -843,7 +843,7 @@ function ScoreCalculator({ playerIndex, notify }) {
 }
 
 // ─── SLOT CHAT — Bulles iMessage ─────────────────────────────────────────────
-function SlotChat({ slotId, profiles, currentUser }) {
+function SlotChat({ slotId, profiles, currentUser, onOpenProfile }) {
   const [messages, setMessages] = useState([]);
   const [input,    setInput]    = useState("");
   const [open,     setOpen]     = useState(false);
@@ -939,7 +939,7 @@ function SlotChat({ slotId, profiles, currentUser }) {
                 return (
                   <div key={gi} style={{ display: "flex", flexDirection: isMine ? "row-reverse" : "row", alignItems: "flex-end", gap: "6px", marginBottom: "8px" }}>
                     {/* Avatar — seulement pour les autres, une fois par groupe */}
-                    {!isMine && <div style={{ flexShrink: 0, alignSelf: "flex-end" }}><Ava profile={p} size={26} /></div>}
+                    {!isMine && <div onClick={() => onOpenProfile && onOpenProfile(p)} style={{ flexShrink: 0, alignSelf: "flex-end", cursor: "pointer" }}><Ava profile={p} size={26} /></div>}
                     {isMine && <div style={{ width: "26px", flexShrink: 0 }} />}
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxWidth: "72%", alignItems: isMine ? "flex-end" : "flex-start" }}>
@@ -1003,7 +1003,7 @@ function SlotChat({ slotId, profiles, currentUser }) {
 }
 
 // ─── SLOT CARD ───────────────────────────────────────────────────────────────
-function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete }) {
+function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOpenProfile }) {
   const activity   = ACTIVITY_TYPES.find(a => a.id === slot.activityType) || ACTIVITY_TYPES[0];
   const isFull     = slot.participants.length >= (slot.maxPlayers || 4);
   const hasJoined  = slot.participants.includes(currentUser.uid);
@@ -1078,7 +1078,7 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete }) {
               const p = profiles[uid];
               const isMe = uid === currentUser.uid;
               return (
-                <div key={uid} style={{ display: "flex", alignItems: "center", gap: "5px", background: isMe ? `${activity.color}15` : T.surfaceAlt, borderRadius: "20px", padding: "3px 10px 3px 3px", border: isMe ? `1px solid ${activity.color}44` : "none" }}>
+                <div key={uid} onClick={() => onOpenProfile && onOpenProfile(p)} style={{ display: "flex", alignItems: "center", gap: "5px", background: isMe ? `${activity.color}15` : T.surfaceAlt, borderRadius: "20px", padding: "3px 10px 3px 3px", border: isMe ? `1px solid ${activity.color}44` : "none", cursor: "pointer" }}>
                   <Ava profile={p} size={22} />
                   <span style={{ fontSize: "12px", color: isMe ? activity.color : T.textMid, fontWeight: isMe ? 600 : 400 }}>{p?.firstName || uid}</span>
                 </div>
@@ -1103,8 +1103,10 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete }) {
         {/* Footer : auteur + actions */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <Ava profile={authorProfile} size={20} />
-            <span style={{ fontSize: "11px", color: T.textLight }}>Par <span style={{ color: T.textMid, fontWeight: 500 }}>{authorProfile?.firstName || slot.author}</span></span>
+            <div onClick={() => onOpenProfile && onOpenProfile(authorProfile)} style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <Ava profile={authorProfile} size={20} />
+              <span style={{ fontSize: "11px", color: T.textLight }}>Par <span style={{ color: T.textMid, fontWeight: 500 }}>{authorProfile?.firstName || slot.author}</span></span>
+            </div>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {/* Bouton Rejoindre — tout le monde (même le créateur après désistement) */}
@@ -1130,13 +1132,13 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete }) {
       </div>
 
       {/* Chat en bulles */}
-      <SlotChat slotId={slot.id} profiles={profiles} currentUser={currentUser} />
+      <SlotChat slotId={slot.id} profiles={profiles} currentUser={currentUser} onOpenProfile={onOpenProfile} />
     </div>
   );
 }
 
 // ─── REVIEW CARD ─────────────────────────────────────────────────────────────
-function ReviewCard({ rev, profiles, currentUser, onDelete, onEdit, onLightbox }) {
+function ReviewCard({ rev, profiles, currentUser, onDelete, onEdit, onLightbox, onOpenProfile }) {
   const authorProfile = profiles[rev.author];
   const isOwner = rev.author === currentUser.uid;
   return (
@@ -1147,7 +1149,9 @@ function ReviewCard({ rev, profiles, currentUser, onDelete, onEdit, onLightbox }
           <Stars value={rev.rating} />
         </div>
         <div style={{ textAlign: "right", flexShrink: 0, paddingLeft: "12px" }}>
-          <Ava profile={authorProfile} size={30} />
+          <div onClick={() => onOpenProfile && onOpenProfile(authorProfile)} style={{ cursor: "pointer" }}>
+            <Ava profile={authorProfile} size={30} />
+          </div>
           <div style={{ fontSize: "11px", color: T.textLight, marginTop: "4px" }}>{authorProfile?.firstName || rev.author}</div>
           <div style={{ fontSize: "11px", color: T.textLight }}>{rev.date}</div>
         </div>
@@ -2128,7 +2132,9 @@ function AgendaView({ profiles, currentUser }) {
                       <div style={{ display: "flex", alignItems: "center", gap: "-6px" }}>
                         {s.participants.slice(0, 4).map((uid, i) => (
                           <div key={uid} style={{ marginLeft: i > 0 ? "-8px" : 0, border: `2px solid ${T.surface}`, borderRadius: "50%", position: "relative", zIndex: 4-i }}>
-                            <Ava profile={profiles[uid]} size={26} />
+                            <div onClick={() => openProfile(profiles[uid])} style={{ cursor: "pointer" }}>
+                              <Ava profile={profiles[uid]} size={26} />
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -2193,6 +2199,16 @@ export default function App() {
   const [revText,   setRevText]   = useState("");
   const [revTips,   setRevTips]   = useState("");
   const [revPhotos, setRevPhotos] = useState([]);
+
+  // profil consulté (autre utilisateur ou soi-même)
+  const [viewedProfile, setViewedProfile] = useState(null);
+
+  // Helper : ouvrir profil — si c'est moi → aller sur l'onglet profil
+  function openProfile(profile) {
+    if (!profile) return;
+    if (profile.uid === currentUser?.uid) { setTab("profile"); return; }
+    setViewedProfile(profile);
+  }
 
   function notify(msg) { setToast(msg); setTimeout(() => setToast(null), 3200); }
 
@@ -2550,6 +2566,7 @@ export default function App() {
       <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: "80px" }}>
         {toast && <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: T.text, color: "#fff", padding: "11px 20px", borderRadius: "30px", fontSize: "13px", fontWeight: 500, zIndex: 400, whiteSpace: "nowrap", boxShadow: T.shadowMd, animation: "toastIn .25s cubic-bezier(0.34,1.56,0.64,1)", fontFamily: "'DM Sans',sans-serif" }}>{toast}</div>}
         {lightbox && <Lightbox photos={lightbox.photos} index={lightbox.index} onClose={() => setLightbox(null)} onNav={d => setLightbox(lb => ({ ...lb, index: (lb.index + d + lb.photos.length) % lb.photos.length }))} />}
+        {viewedProfile && <MemberProfileModal profile={viewedProfile} onClose={() => setViewedProfile(null)} />}
 
         {/* HEADER — fond vert foncé, logo crème natif */}
         <header style={{ background: GREEN, borderBottom: "none", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(28,74,48,0.18)" }}>
@@ -2670,7 +2687,7 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   {upcoming.map(s => (
                           <div key={s.id} style={{ cursor: "pointer" }}>
-                            <SlotCard slot={s} profiles={profiles} currentUser={currentUser} onJoin={handleJoin} onLeave={handleLeave} onDelete={handleDelSlot} />
+                            <SlotCard slot={s} profiles={profiles} currentUser={currentUser} onJoin={handleJoin} onLeave={handleLeave} onDelete={handleDelSlot} onOpenProfile={openProfile} />
                           </div>
                         ))}
                 </div>
@@ -2747,7 +2764,7 @@ export default function App() {
                 </div>
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {filtRev.map(r => <ReviewCard key={r.id} rev={r} profiles={profiles} currentUser={currentUser} onDelete={handleDelReview} onEdit={openEditReview} onLightbox={(ph, i) => setLightbox({ photos: ph, index: i })} />)}
+                {filtRev.map(r => <ReviewCard key={r.id} rev={r} profiles={profiles} currentUser={currentUser} onDelete={handleDelReview} onEdit={openEditReview} onLightbox={(ph, i) => setLightbox({ photos: ph, index: i })} onOpenProfile={openProfile} />)}
               </div>
             </div>
           )}
