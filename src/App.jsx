@@ -384,6 +384,69 @@ const GOLF_COURSES_BY_REGION = {
 const ALL_GOLF_COURSES = Object.entries(GOLF_COURSES_BY_REGION)
   .flatMap(([r,cs]) => cs.map(c => ({ label: c, region: r })));
 
+
+// ─── MÉTÉO HELPER ─────────────────────────────────────────────────────────────
+// Open-Meteo API — gratuite, sans clé
+// WMO weather codes → emoji
+function wmoToEmoji(code) {
+  if (code===0)           return "☀️";
+  if (code<=2)            return "🌤️";
+  if (code===3)           return "☁️";
+  if (code<=49)           return "🌫️";
+  if (code<=57)           return "🌧️";
+  if (code<=67)           return "🌨️";
+  if (code<=77)           return "❄️";
+  if (code<=82)           return "🌦️";
+  if (code<=86)           return "🌨️";
+  if (code<=99)           return "⛈️";
+  return "🌡️";
+}
+
+// Cache simple en mémoire pour éviter les appels répétés
+const weatherCache = {};
+
+async function fetchWeather(date) {
+  // Paris coords par défaut (le slot n'a pas de géoloc précise)
+  const lat = 48.85; const lon = 2.35;
+  const key = `${date}`;
+  if (weatherCache[key]) return weatherCache[key];
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&start_date=${date}&end_date=${date}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.daily) return null;
+    const result = {
+      code: data.daily.weathercode[0],
+      max:  Math.round(data.daily.temperature_2m_max[0]),
+      min:  Math.round(data.daily.temperature_2m_min[0]),
+    };
+    weatherCache[key] = result;
+    return result;
+  } catch { return null; }
+}
+
+// Composant météo inline dans SlotCard
+function WeatherBadge({ date }) {
+  const [weather, setWeather] = useState(null);
+  const today = new Date().toISOString().split("T")[0];
+  // Ne charger que pour les 7 prochains jours (limite API)
+  const daysDiff = Math.ceil((new Date(date) - new Date()) / 86400000);
+
+  useEffect(() => {
+    if (daysDiff < 0 || daysDiff > 14) return;
+    fetchWeather(date).then(setWeather);
+  }, [date]);
+
+  if (!weather) return null;
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:"4px", fontSize:"12px", color:T.textMid, background:T.surfaceAlt, padding:"3px 8px", borderRadius:"20px", flexShrink:0 }}>
+      <span>{wmoToEmoji(weather.code)}</span>
+      <span style={{ fontWeight:500 }}>{weather.max}°</span>
+      <span style={{ color:T.textLight, fontSize:"10px" }}>{weather.min}°</span>
+    </span>
+  );
+}
+
 // ─── ACTIVITÉS ───────────────────────────────────────────────────────────────
 const ACTIVITY_TYPES = [
   {
@@ -866,16 +929,25 @@ function SlotChat({ slotId, profiles, currentUser, onOpenProfile }) {
     return unsub;
   }, [slotId]);
 
+  // Scroll vers le bas uniquement quand un NOUVEAU message arrive (pas à l'ouverture)
+  const prevMsgCount = useRef(0);
   useEffect(() => {
     if (open) {
       setUnread(0);
       lastSeenRef.current = Date.now();
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        inputRef.current?.focus();
-      }, 100);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [open, messages]);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const isNewMessage = messages.length > prevMsgCount.current;
+    prevMsgCount.current = messages.length;
+    // Scroll uniquement si c'est un nouveau message (pas au chargement initial)
+    if (isNewMessage && prevMsgCount.current > 1) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }, [messages, open]);
 
   async function send() {
     const txt = input.trim();
@@ -1045,6 +1117,7 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOp
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 <span style={{ fontSize: "12px", color: T.textMid, fontWeight: 500 }}>{slot.time}</span>
               </div>
+              <WeatherBadge date={slot.date} />
             </div>
           </div>
 
@@ -1132,6 +1205,37 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOp
       </div>
 
       {/* Chat en bulles */}
+      {/* ── Sondage de disponibilité ── */}
+      {slot.isPoll && (() => {
+        const votes = slot.pollVotes || {};
+        const myVote = votes[currentUser.uid];
+        const dispo = Object.values(votes).filter(v=>v==="yes").length;
+        const notDispo = Object.values(votes).filter(v=>v==="no").length;
+        async function vote(v) {
+          await updateDoc(doc(db,`slots/${slot.id}`), { [`pollVotes.${currentUser.uid}`]: v });
+        }
+        return (
+          <div style={{ margin:"0 20px 14px", padding:"12px 14px", background:`${T.accent}08`, borderRadius:"10px", border:`1px solid ${T.accent}22` }}>
+            <div style={{ fontSize:"12px", fontWeight:600, color:T.accent, marginBottom:"10px" }}>Sondage de disponibilité</div>
+            <div style={{ display:"flex", gap:"8px", marginBottom:"10px" }}>
+              <button onClick={()=>vote("yes")} style={{ flex:1, padding:"8px", borderRadius:"8px", border:`1.5px solid ${myVote==="yes"?"#2A5C3F":T.border}`, background:myVote==="yes"?"#2A5C3F":"transparent", color:myVote==="yes"?"#fff":T.textMid, fontSize:"13px", fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
+                ✅ Dispo <span style={{ fontSize:"11px", opacity:.8 }}>({dispo})</span>
+              </button>
+              <button onClick={()=>vote("no")} style={{ flex:1, padding:"8px", borderRadius:"8px", border:`1.5px solid ${myVote==="no"?T.danger:T.border}`, background:myVote==="no"?T.dangerLight:"transparent", color:myVote==="no"?T.danger:T.textMid, fontSize:"13px", fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:"6px" }}>
+                ❌ Pas dispo <span style={{ fontSize:"11px", opacity:.8 }}>({notDispo})</span>
+              </button>
+            </div>
+            {Object.keys(votes).length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+                {Object.entries(votes).map(([uid,v])=>{
+                  const p=profiles[uid]; if(!p)return null;
+                  return <span key={uid} style={{ fontSize:"11px", padding:"2px 8px", borderRadius:"12px", background:v==="yes"?"#EBF3EE":T.dangerLight, color:v==="yes"?T.accent:T.danger }}>{p.firstName||p.username} {v==="yes"?"✅":"❌"}</span>;
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
       <SlotChat slotId={slot.id} profiles={profiles} currentUser={currentUser} onOpenProfile={onOpenProfile} />
     </div>
   );
@@ -1274,9 +1378,9 @@ function MemberCard({ profile, currentUser, isFavorite, onToggleFavorite, onView
         {isPublic && profile.index && <div style={{ fontSize: "12px", color: T.accent, fontWeight: 500, marginTop: "2px" }}>Index {profile.index}</div>}
         {!isPublic && !isMe && <div style={{ fontSize: "12px", color: T.textLight, marginTop: "2px", fontStyle: "italic" }}>Profil masqué</div>}
         <div style={{ display: "flex", gap: "10px", marginTop: "5px", flexWrap: "wrap" }}>
-          {isPublic && profile.tee && <span style={{ fontSize: "11px", color: T.textLight }}>⛳ Départ {profile.tee}</span>}
+          {isPublic && profile.tee && <span style={{ fontSize: "11px", color: T.textLight }}>Départ {profile.tee}</span>}
           {isPublic && profile.phone && <span style={{ fontSize: "11px", color: T.textLight }}>📱 {formatPhone(profile.phone)}</span>}
-          {isPublic && profile.email && <span style={{ fontSize: "11px", color: T.textLight }}>✉️ {profile.email}</span>}
+          {isPublic && profile.email && <span style={{ fontSize: "11px", color: T.textLight }}>{profile.email}</span>}
         </div>
       </div>
       {!isMe && (
@@ -1347,6 +1451,69 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
     return (
       <div style={{ animation: "slideUp .2s ease" }}>
         {viewedProfile && <MemberProfileModal profile={viewedProfile} onClose={() => setViewedProfile(null)} />}
+        {detailSlot && (
+          <div onClick={() => setDetailSlot(null)} style={{ position:"fixed", inset:0, background:"rgba(26,23,20,0.6)", zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:T.surface, borderRadius:"24px 24px 0 0", width:"100%", maxWidth:"480px", padding:"24px 24px 40px", animation:"slideUp .25s cubic-bezier(.22,1,.36,1)" }}>
+              <div style={{ width:"36px", height:"4px", borderRadius:"2px", background:T.border, margin:"0 auto 20px" }}/>
+              {(() => {
+                const act  = ACTIVITY_TYPES.find(a=>a.id===detailSlot.activityType)||ACTIVITY_TYPES[0];
+                const isIn = detailSlot.participants?.includes(currentUser.uid);
+                return (
+                  <>
+                    {/* Bandeau activité */}
+                    <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"18px" }}>
+                      <div style={{ width:"48px", height:"48px", borderRadius:"14px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {act.icon(act.color)}
+                      </div>
+                      <div>
+                        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text }}>
+                          {detailSlot.activityType==="parcours"&&detailSlot.course ? detailSlot.course.split(" – ")[0] : act.label}
+                        </div>
+                        <div style={{ fontSize:"12px", color:T.textLight, marginTop:"2px" }}>
+                          {formatDate(detailSlot.date)} · {detailSlot.time}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Participants */}
+                    <div style={{ marginBottom:"16px" }}>
+                      <div style={{ fontSize:"11px", color:T.textLight, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"8px" }}>Participants · {detailSlot.participants?.length}/{detailSlot.maxPlayers||4}</div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+                        {detailSlot.participants?.map(uid => {
+                          const p=profiles[uid];
+                          return (
+                            <div key={uid} onClick={()=>{setDetailSlot(null);openProfile(p);}} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 10px 4px 4px", background: uid===currentUser.uid ? T.accentLight : T.surfaceAlt, borderRadius:"20px", cursor:"pointer", border:`1px solid ${uid===currentUser.uid?T.accent+"44":T.border}` }}>
+                              <Ava profile={p} size={22}/>
+                              <span style={{ fontSize:"12px", color:uid===currentUser.uid?T.accent:T.textMid, fontWeight: uid===currentUser.uid?600:400 }}>{p?.firstName||uid}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Note */}
+                    {detailSlot.note && (
+                      <div style={{ padding:"10px 14px", background:T.surfaceAlt, borderRadius:"10px", marginBottom:"16px", borderLeft:`3px solid ${act.color}` }}>
+                        <p style={{ fontSize:"13px", color:T.textMid, fontStyle:"italic", margin:0 }}>{detailSlot.note}</p>
+                      </div>
+                    )}
+                    {/* Actions */}
+                    <div style={{ display:"flex", gap:"8px" }}>
+                      {!isIn && detailSlot.participants?.length < (detailSlot.maxPlayers||4) && (
+                        <button onClick={()=>{handleJoin(detailSlot.id);setDetailSlot(null);}} style={{ flex:1, padding:"12px", borderRadius:"12px", background:act.color, color:"#fff", border:"none", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Rejoindre</button>
+                      )}
+                      {isIn && detailSlot.author!==currentUser.uid && (
+                        <button onClick={()=>{handleLeave(detailSlot.id);setDetailSlot(null);}} style={{ flex:1, padding:"12px", borderRadius:"12px", background:T.surfaceAlt, color:T.textMid, border:`1px solid ${T.border}`, fontSize:"14px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Se désister</button>
+                      )}
+                      {detailSlot.author===currentUser.uid && (
+                        <button onClick={()=>{handleDelSlot(detailSlot.id);setDetailSlot(null);}} style={{ flex:1, padding:"12px", borderRadius:"12px", background:T.dangerLight, color:T.danger, border:"none", fontSize:"14px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Annuler le slot</button>
+                      )}
+                      <button onClick={()=>setDetailSlot(null)} style={{ padding:"12px 18px", borderRadius:"12px", background:T.surfaceAlt, color:T.textMid, border:"none", fontSize:"14px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Fermer</button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
         <button onClick={() => setSelectedTeam(null)} style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", cursor: "pointer", color: T.accent, fontSize: "13px", marginBottom: "18px", padding: 0, fontFamily: "'DM Sans',sans-serif" }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
           Mes équipes
@@ -1535,7 +1702,7 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
 }
 
 // ─── FAVORIS SECTION ─────────────────────────────────────────────────────────
-function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGolfs, setFavGolfs, favApps, setFavApps, favProfiles }) {
+function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGolfs, setFavGolfs, favApps, setFavApps, favProfiles, onOpenProfile }) {
   const [activeTab,     setActiveTab]     = useState("joueurs"); // joueurs | golfs | apps
   const [searchPlayer,  setSearchPlayer]  = useState("");
   const [searchGolf,    setSearchGolf]    = useState("");
@@ -1579,7 +1746,7 @@ function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGol
   }
   function removeApp(id) { setFavApps(prev => prev.filter(a => a.id !== id)); }
 
-  const TABS = [["joueurs","Partenaires"],["golfs","Golfs"],["apps","Apps"]];
+  const TABS = [["joueurs","Membres Favoris"],["golfs","Golfs"],["apps","Apps"]];
 
   return (
     <div style={{ animation: "slideUp .2s ease" }}>
@@ -1644,12 +1811,14 @@ function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGol
             : <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {favProfiles.map(pr => (
                   <div key={pr.uid} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, boxShadow: T.shadow }}>
-                    <Ava profile={pr} size={38}/>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", fontWeight: 500, color: T.text }}>{pr.firstName} {pr.lastName}</div>
-                      <div style={{ fontSize: "11px", color: T.textLight }}>@{pr.username}{pr.index ? ` · Idx ${pr.index}` : ""}</div>
+                    <div onClick={() => pr.profilePublic !== false && onOpenProfile && onOpenProfile(pr)} style={{ cursor: pr.profilePublic !== false ? "pointer" : "default", display:"flex", alignItems:"center", gap:"12px", flex:1 }}>
+                      <Ava profile={pr} size={38}/>
+                      <div>
+                        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", fontWeight: 500, color: T.text }}>{pr.firstName} {pr.lastName}</div>
+                        <div style={{ fontSize: "11px", color: T.textLight }}>@{pr.username}{pr.index ? ` · Idx ${pr.index}` : ""}</div>
+                      </div>
                     </div>
-                    <button onClick={() => toggleFavPlayer(pr.uid)} style={{ background: `${T.gold}18`, border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={() => toggleFavPlayer(pr.uid)} style={{ background: `${T.gold}18`, border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill={T.gold} stroke={T.gold} strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     </button>
                   </div>
@@ -1797,7 +1966,7 @@ function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGol
 }
 
 // ─── PROFILE TAB ─────────────────────────────────────────────────────────────
-function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogout, onDeleteAccount, notify }) {
+function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews, onSave, onLogout, onDeleteAccount, notify, onOpenProfile, onOpenSlot, onAddSlot }) {
   const p = profiles[currentUser.uid] || {};
   const [photo,          setPhoto]          = useState(p.photo || "");
   const [firstName,      setFirstName]      = useState(p.firstName || "");
@@ -1852,7 +2021,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogou
   const otherProfiles = Object.values(profiles).filter(pr => pr.uid !== currentUser.uid);
   const favProfiles   = otherProfiles.filter(pr => favorites.includes(pr.uid));
 
-  const sections = [["profil","Mon profil"],["equipe","L'équipe"],["favoris","Favoris"],["agenda","Agenda"]];
+  const sections = [["profil","Mon profil"],["stats","Stats & Badges"],["historique","Historique"],["equipe","L'équipe"],["favoris","Favoris"],["agenda","Agenda"]];
 
   return (
     <div style={{ animation: "slideUp .2s ease" }}>
@@ -2026,6 +2195,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogou
           favGolfs={favGolfs} setFavGolfs={setFavGolfs}
           favApps={favApps} setFavApps={setFavApps}
           favProfiles={favProfiles}
+          onOpenProfile={onOpenProfile}
           onSaveAll={() => {
             const p2 = profiles[currentUser.uid] || {};
             onSave({ ...p2, favorites, favGolfs, favApps }, null);
@@ -2035,122 +2205,520 @@ function ProfileTab({ currentUser, profiles, teams, memberships, onSave, onLogou
 
       {/* ── AGENDA ── */}
       {activeSection === "agenda" && (
-        <AgendaView profiles={profiles} currentUser={currentUser} />
+        <AgendaView
+          profiles={profiles}
+          currentUser={currentUser}
+          slots={slots}
+          onOpenSlot={onOpenSlot}
+          onAddSlot={onAddSlot}
+        />
+      )}
+
+      {/* ── HISTORIQUE ── */}
+      {activeSection === "historique" && (
+        <HistoriqueView slots={slots} profiles={profiles} currentUser={currentUser} />
+      )}
+
+      {/* ── STATS & BADGES ── */}
+      {activeSection === "stats" && (
+        <StatsView slots={slots} reviews={reviews} profiles={profiles} memberships={memberships} currentUser={currentUser} notify={notify} />
       )}
     </div>
   );
 }
 
-// ─── AGENDA VIEW ─────────────────────────────────────────────────────────────
-function AgendaView({ profiles, currentUser }) {
-  const [slots, setSlots] = useState([]);
-  const [filterPlayer, setFilterPlayer] = useState("all");
 
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const unsub = onSnapshot(query(col("slots"), orderBy("date")), snap => {
-      setSlots(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.date >= today));
-    });
-    return unsub;
-  }, []);
 
-  const players = [...new Set(slots.flatMap(s => s.participants))].map(uid => profiles[uid]).filter(Boolean);
-  const filtered = filterPlayer === "all" ? slots : slots.filter(s => s.participants.includes(filterPlayer));
-  const grouped = {};
-  filtered.forEach(s => { if (!grouped[s.date]) grouped[s.date] = []; grouped[s.date].push(s); });
+// ─── CALENDAR VIEW ────────────────────────────────────────────────────────────
+function CalendarView({ slots, profiles, currentUser, onOpenSlot, onAddSlot }) {
+  const today     = new Date().toISOString().split("T")[0];
+  const [curYear, setCurYear]   = useState(new Date().getFullYear());
+  const [curMonth, setCurMonth] = useState(new Date().getMonth()); // 0-based
+  const [selected, setSelected] = useState(null); // date string YYYY-MM-DD
 
-  function isToday(d) { return d === new Date().toISOString().split("T")[0]; }
-  function isTomorrow(d) { const t = new Date(); t.setDate(t.getDate()+1); return d === t.toISOString().split("T")[0]; }
-  function dayLabel(d) { if (isToday(d)) return "Aujourd'hui"; if (isTomorrow(d)) return "Demain"; return formatDate(d); }
-  function dayOfWeek(d) { return new Date(d+"T12:00:00").toLocaleDateString("fr-FR", { weekday:"long" }); }
-  function dayNum(d) { return new Date(d+"T12:00:00").getDate(); }
-  function monthShort(d) { return new Date(d+"T12:00:00").toLocaleDateString("fr-FR", { month:"short" }); }
+  // Navigation mois
+  function prevMonth() {
+    if (curMonth === 0) { setCurMonth(11); setCurYear(y => y-1); }
+    else setCurMonth(m => m-1);
+  }
+  function nextMonth() {
+    if (curMonth === 11) { setCurMonth(0); setCurYear(y => y+1); }
+    else setCurMonth(m => m+1);
+  }
+
+  // Construction grille calendrier
+  const firstDay  = new Date(curYear, curMonth, 1);
+  const daysInMonth = new Date(curYear, curMonth+1, 0).getDate();
+  // Lundi = 0 ... Dimanche = 6
+  let startDow = firstDay.getDay() - 1; // JS: 0=dim → on veut lundi=0
+  if (startDow < 0) startDow = 6;
+
+  const cells = []; // null = vide, sinon numéro de jour
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  const DOW = ["L","M","M","J","V","S","D"];
+
+  function dateStr(day) {
+    return `${curYear}-${String(curMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+  }
+
+  function slotsForDay(day) {
+    const d = dateStr(day);
+    return slots.filter(s => s.date === d);
+  }
+
+  // Popup du jour sélectionné
+  const selectedSlots = selected ? slots.filter(s => s.date === selected) : [];
+  const selectedDate  = selected ? new Date(selected+"T12:00:00") : null;
 
   return (
     <div style={{ animation: "slideUp .2s ease" }}>
-      <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "18px", fontWeight: 500, color: T.text, marginBottom: "16px" }}>Agenda</h3>
 
-      {/* Filtre membres */}
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "24px", paddingBottom: "16px", borderBottom: `1px solid ${T.border}` }}>
-        <button onClick={() => setFilterPlayer("all")} style={{ padding: "6px 14px", borderRadius: "20px", fontSize: "12px", border: `1.5px solid ${filterPlayer === "all" ? T.accent : T.border}`, background: filterPlayer === "all" ? T.accent : T.surface, color: filterPlayer === "all" ? "#fff" : T.textMid, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: filterPlayer === "all" ? 600 : 400, transition: "all .15s" }}>
-          Tous
+      {/* ── Header navigation mois ── */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
+        <button onClick={prevMonth} style={{ width:"36px", height:"36px", borderRadius:"10px", background:T.surface, border:`1.5px solid ${T.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:T.textMid }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        {players.map(p => (
-          <button key={p.uid} onClick={() => setFilterPlayer(p.uid)}
-            style={{ padding: "5px 10px 5px 5px", borderRadius: "20px", fontSize: "12px", border: `1.5px solid ${filterPlayer === p.uid ? T.accent : T.border}`, background: filterPlayer === p.uid ? T.accentLight : T.surface, color: filterPlayer === p.uid ? T.accent : T.textMid, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}>
-            <Ava profile={p} size={18} />
-            <span style={{ fontWeight: filterPlayer === p.uid ? 600 : 400 }}>{p.firstName || p.username}</span>
-          </button>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text }}>{MONTH_NAMES[curMonth]}</div>
+          <div style={{ fontSize:"12px", color:T.textLight }}>{curYear}</div>
+        </div>
+        <button onClick={nextMonth} style={{ width:"36px", height:"36px", borderRadius:"10px", background:T.surface, border:`1.5px solid ${T.border}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:T.textMid }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      {/* ── Jours de semaine ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"2px", marginBottom:"4px" }}>
+        {DOW.map((d,i) => (
+          <div key={i} style={{ textAlign:"center", fontSize:"11px", fontWeight:600, color: i>=5 ? T.accent : T.textLight, padding:"4px 0", letterSpacing:"0.05em" }}>{d}</div>
         ))}
       </div>
 
-      {Object.keys(grouped).length === 0
-        ? (
-          <div style={{ textAlign: "center", padding: "56px 20px" }}>
-            <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: T.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.borderStrong} strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            </div>
-            <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "16px", color: T.textMid, marginBottom: "6px" }}>Aucune sortie prévue</p>
-            <p style={{ fontSize: "13px", color: T.textLight }}>Les prochains slots apparaîtront ici</p>
-          </div>
-        )
-        : Object.entries(grouped).map(([date, daySlots]) => {
-          const isSpecial = isToday(date) || isTomorrow(date);
+      {/* ── Grille calendrier ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:"4px", marginBottom:"20px" }}>
+        {cells.map((day, idx) => {
+          if (!day) return <div key={idx} style={{ minHeight:"80px" }} />;
+          const ds       = dateStr(day);
+          const daySlots = slotsForDay(day);
+          const isToday  = ds === today;
+          const isSel    = ds === selected;
+          const isWeekend= idx % 7 >= 5;
+          const isPast   = ds < today;
+          const hasSlot  = daySlots.length > 0;
+          const amIn     = daySlots.some(s => s.participants?.includes(currentUser.uid));
+          const firstSlot = daySlots[0];
+          const firstAct  = firstSlot ? (ACTIVITY_TYPES.find(a=>a.id===firstSlot.activityType)||ACTIVITY_TYPES[0]) : null;
+
           return (
-            <div key={date} style={{ marginBottom: "28px" }}>
-              {/* En-tête de date — premium */}
-              <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "12px" }}>
-                <div style={{ width: "44px", height: "48px", borderRadius: "12px", background: isSpecial ? T.accent : T.surfaceAlt, border: isSpecial ? "none" : `1.5px solid ${T.border}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: isSpecial ? `0 4px 12px ${T.accent}33` : "none" }}>
-                  <span style={{ fontSize: "18px", fontWeight: 700, color: isSpecial ? "#fff" : T.text, lineHeight: 1 }}>{dayNum(date)}</span>
-                  <span style={{ fontSize: "9px", color: isSpecial ? "rgba(255,255,255,0.7)" : T.textLight, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "1px" }}>{monthShort(date)}</span>
+            <div
+              key={idx}
+              onClick={() => {
+                setSelected(isSel ? null : ds);
+                if (!hasSlot && !isSel && onAddSlot) onAddSlot(ds);
+              }}
+              style={{
+                borderRadius:"12px",
+                padding:"7px 6px 6px",
+                minHeight:"80px",
+                cursor:"pointer",
+                background: isSel ? T.accent : isToday ? T.accentLight : T.surface,
+                border: `1.5px solid ${isSel ? T.accent : isToday ? T.accent+"55" : T.border}`,
+                display:"flex", flexDirection:"column", gap:"4px",
+                opacity: isPast && !hasSlot ? 0.45 : isPast ? 0.7 : 1,
+                transition:"all .12s",
+                position:"relative",
+                overflow:"hidden",
+                boxShadow: isSel ? `0 4px 16px ${T.accent}33` : isToday ? `0 2px 8px ${T.accent}22` : "none",
+              }}
+            >
+              {/* Numéro du jour — carré premium */}
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"2px" }}>
+                <div style={{
+                  width:"32px", height:"34px", borderRadius:"8px",
+                  background: isSel ? "rgba(255,255,255,0.25)" : hasSlot || isToday ? T.accent : T.surfaceAlt,
+                  display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                  flexShrink:0,
+                  boxShadow: (hasSlot || isToday) && !isSel ? `0 2px 8px ${T.accent}44` : "none",
+                }}>
+                  <span style={{
+                    fontSize:"13px", fontWeight:700, lineHeight:1,
+                    color: isSel ? "#fff" : (hasSlot || isToday) ? "#fff" : T.textMid,
+                    fontFamily:"'DM Sans',sans-serif",
+                  }}>{day}</span>
+                  <span style={{
+                    fontSize:"7px", fontWeight:600, lineHeight:1, marginTop:"2px",
+                    color: isSel ? "rgba(255,255,255,0.7)" : (hasSlot || isToday) ? "rgba(255,255,255,0.65)" : T.textLight,
+                    fontFamily:"'DM Sans',sans-serif", letterSpacing:"0.06em", textTransform:"uppercase",
+                  }}>{new Date(curYear, curMonth, day).toLocaleDateString("fr-FR",{month:"short"}).replace(".","")}</span>
                 </div>
-                <div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "16px", fontWeight: 500, color: isSpecial ? T.accent : T.text }}>{dayLabel(date)}</div>
-                  {!isSpecial && <div style={{ fontSize: "11px", color: T.textLight, textTransform: "capitalize" }}>{dayOfWeek(date)}</div>}
-                  <div style={{ fontSize: "11px", color: T.textLight }}>{daySlots.length} slot{daySlots.length > 1 ? "s" : ""}</div>
-                </div>
+                {/* Indicateur participation */}
+                {amIn && !isSel && (
+                  <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:T.accent, flexShrink:0, marginTop:"2px" }} />
+                )}
+                {amIn && isSel && (
+                  <div style={{ width:"6px", height:"6px", borderRadius:"50%", background:"rgba(255,255,255,0.8)", flexShrink:0, marginTop:"2px" }} />
+                )}
               </div>
 
-              {/* Slots du jour */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingLeft: "58px" }}>
-                {daySlots.map(s => {
-                  const act = ACTIVITY_TYPES.find(a => a.id === s.activityType) || ACTIVITY_TYPES[0];
-                  const isIn = s.participants.includes(currentUser.uid);
-                  return (
-                    <div key={s.id} className="chover" style={{ background: T.surface, border: `1.5px solid ${isIn ? act.color+"44" : T.border}`, borderRadius: "12px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "12px", boxShadow: isIn ? `0 2px 8px ${act.color}22` : T.shadow }}>
-                      <div style={{ width: "38px", height: "38px", background: act.colorLight, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        {act.icon(act.color)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: T.text, marginBottom: "2px" }}>{s.activityType === "parcours" && s.course ? s.course.split(" – ")[0] : act.label}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontSize: "11px", color: T.textMid, fontWeight: 500 }}>{s.time}</span>
-                          <span style={{ fontSize: "11px", color: T.textLight }}>·</span>
-                          <span style={{ fontSize: "11px", color: T.textLight }}>{s.participants.length} participant{s.participants.length > 1 ? "s" : ""}</span>
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "-6px" }}>
-                        {s.participants.slice(0, 4).map((uid, i) => (
-                          <div key={uid} style={{ marginLeft: i > 0 ? "-8px" : 0, border: `2px solid ${T.surface}`, borderRadius: "50%", position: "relative", zIndex: 4-i }}>
-                            <div onClick={() => openProfile(profiles[uid])} style={{ cursor: "pointer" }}>
-                              <Ava profile={profiles[uid]} size={26} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      {isIn && (
-                        <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: act.color, flexShrink: 0, boxShadow: `0 0 0 3px ${act.color}33` }} />
-                      )}
+              {/* Slots du jour — affichage compact */}
+              {daySlots.slice(0,2).map((s,i) => {
+                const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+                const label = s.activityType==="parcours"&&s.course
+                  ? s.course.split(" – ")[0].split(" ").slice(0,2).join(" ")
+                  : act.label;
+                const nb = `${s.participants?.length||1}/${s.maxPlayers||4}`;
+                return (
+                  <div key={i} style={{
+                    borderRadius:"6px",
+                    padding:"3px 5px",
+                    background: isSel ? "rgba(255,255,255,0.18)" : act.colorLight,
+                    borderLeft: `2.5px solid ${isSel ? "rgba(255,255,255,0.7)" : act.color}`,
+                    flex: i===0 && daySlots.length===1 ? 1 : "none",
+                  }}>
+                    <div style={{ fontSize:"9px", fontWeight:700, color: isSel ? "#fff" : act.color, lineHeight:1.2, fontFamily:"'DM Sans',sans-serif", textTransform:"uppercase", letterSpacing:"0.04em" }}>
+                      {s.time}
                     </div>
-                  );
-                })}
-              </div>
+                    <div style={{ fontSize:"9px", color: isSel ? "rgba(255,255,255,0.85)" : T.textMid, lineHeight:1.2, fontFamily:"'DM Sans',sans-serif", marginTop:"1px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize:"8px", color: isSel ? "rgba(255,255,255,0.6)" : T.textLight, lineHeight:1, marginTop:"1px", fontFamily:"'DM Sans',sans-serif" }}>
+                      {nb}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Badge +N si plus de 2 slots */}
+              {daySlots.length > 2 && (
+                <div style={{ fontSize:"8px", fontWeight:600, color: isSel ? "rgba(255,255,255,0.7)" : T.textLight, textAlign:"center", lineHeight:1 }}>
+                  +{daySlots.length-2}
+                </div>
+              )}
             </div>
           );
-        })
-      }
+        })}
+      </div>
+
+      {/* ── Panneau du jour sélectionné ── */}
+      {selected && (
+        <div style={{ animation:"slideUp .2s ease" }}>
+          <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:"12px" }}>
+            <div>
+              <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text }}>
+                {selectedDate?.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" })}
+              </span>
+            </div>
+            {onAddSlot && (
+              <button onClick={() => onAddSlot(selected)} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"20px", background:T.accent, color:"#fff", border:"none", fontSize:"12px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+                Ajouter
+              </button>
+            )}
+          </div>
+
+          {selectedSlots.length === 0 ? (
+            <div onClick={() => onAddSlot && onAddSlot(selected)} style={{ textAlign:"center", padding:"28px", background:T.surface, borderRadius:T.radius, border:`1.5px dashed ${T.border}`, cursor: onAddSlot ? "pointer" : "default" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 10px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <p style={{ fontSize:"13px", color:T.textLight }}>{onAddSlot ? "Cliquez pour ajouter un slot" : "Aucun slot ce jour"}</p>
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+              {selectedSlots.map(s => {
+                const act  = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+                const isIn = s.participants?.includes(currentUser.uid);
+                return (
+                  <div key={s.id} onClick={() => onOpenSlot && onOpenSlot(s)} className="chover" style={{ background:T.surface, border:`1.5px solid ${isIn ? act.color+"55" : T.border}`, borderRadius:"12px", padding:"14px 16px", display:"flex", alignItems:"center", gap:"12px", cursor: onOpenSlot ? "pointer" : "default", boxShadow: isIn ? `0 2px 8px ${act.color}22` : T.shadow }}>
+                    <div style={{ width:"40px", height:"40px", borderRadius:"10px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      {act.icon(act.color)}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:500, color:T.text, marginBottom:"3px" }}>
+                        {s.activityType==="parcours"&&s.course ? s.course.split(" – ")[0] : act.label}
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                        <span style={{ fontSize:"12px", color:T.textMid, fontWeight:500 }}>{s.time}</span>
+                        <span style={{ fontSize:"12px", color:T.textLight }}>·</span>
+                        <div style={{ display:"flex", alignItems:"center" }}>
+                          {s.participants?.slice(0,4).map((uid,i) => (
+                            <div key={uid} style={{ marginLeft: i>0?"-6px":0, border:`2px solid ${T.surface}`, borderRadius:"50%", position:"relative", zIndex:4-i }}>
+                              <Ava profile={profiles[uid]} size={20}/>
+                            </div>
+                          ))}
+                          {(s.participants?.length||0) > 4 && <span style={{ fontSize:"10px", color:T.textLight, marginLeft:"4px" }}>+{s.participants.length-4}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {isIn && <div style={{ width:"8px", height:"8px", borderRadius:"50%", background:act.color, flexShrink:0 }}/>}
+                    {onOpenSlot && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+// ─── HISTORIQUE VIEW ─────────────────────────────────────────────────────────
+function HistoriqueView({ slots, profiles, currentUser }) {
+  const today  = new Date().toISOString().split("T")[0];
+  const past   = slots
+    .filter(s => s.date < today && s.participants?.includes(currentUser.uid))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:"16px" }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text }}>Mes parties passées</h3>
+        <span style={{ fontSize:"12px", color:T.textLight }}>{past.length} partie{past.length!==1?"s":""}</span>
+      </div>
+      {past.length === 0 && (
+        <div style={{ textAlign:"center", padding:"48px 20px", color:T.textLight }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><path d="M3 17l4-12 4 5 4-8 4 15"/><path d="M3 20h18"/></svg>
+          <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid }}>Aucune partie jouée pour l'instant</p>
+        </div>
+      )}
+      <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+        {past.map(s => {
+          const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+          return (
+            <div key={s.id} style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"14px 18px", boxShadow:T.shadow, display:"flex", alignItems:"center", gap:"14px" }}>
+              <div style={{ width:"40px", height:"40px", borderRadius:"10px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                {act.icon(act.color)}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:500, color:T.text, marginBottom:"2px" }}>
+                  {s.course || act.label}
+                </div>
+                <div style={{ fontSize:"12px", color:T.textLight }}>
+                  {formatDate(s.date)} · {s.time} · {s.participants?.length} joueur{s.participants?.length!==1?"s":""}
+                </div>
+              </div>
+              <span style={{ fontSize:"11px", fontWeight:600, color:act.color, background:act.colorLight, padding:"3px 9px", borderRadius:"20px", whiteSpace:"nowrap", flexShrink:0 }}>
+                {act.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── STATS VIEW (Handicap + Badges + Classement) ─────────────────────────────
+function StatsView({ slots, reviews, profiles, memberships, currentUser, notify }) {
+  const pr = profiles[currentUser.uid] || {};
+  const [newIndex, setNewIndex] = useState("");
+  const [indexHistory, setIndexHistory] = useState(pr.indexHistory || []);
+
+  const today    = new Date().toISOString().split("T")[0];
+  const mySlots  = slots.filter(s => s.participants?.includes(currentUser.uid));
+  const myPast   = mySlots.filter(s => s.date < today);
+  const myCreated= slots.filter(s => s.author === currentUser.uid);
+  const myReviews= reviews.filter(r => r.author === currentUser.uid);
+  const partners = new Set(mySlots.flatMap(s=>s.participants||[]).filter(u=>u!==currentUser.uid));
+  const badges   = computeBadges(currentUser.uid, slots, reviews, profiles, memberships);
+
+  // Classement équipe (parties jouées)
+  const rankingPlayed = Object.values(profiles)
+    .map(p => ({ ...p, count: slots.filter(s=>s.participants?.includes(p.uid)&&s.date<today).length }))
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,5);
+
+  async function saveIndex() {
+    const val = parseFloat(newIndex.replace(",","."));
+    if (isNaN(val) || val<-10 || val>54) { notify("Index invalide (entre -10 et 54)"); return; }
+    const entry = { value:val, date:today };
+    const updated = [...indexHistory, entry];
+    setIndexHistory(updated);
+    await updateDoc(doc(db, `users/${currentUser.uid}`), { indexHistory: updated, index: String(val) });
+    setNewIndex("");
+    notify("Index enregistré ✓");
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+
+      {/* ── Mes stats ── */}
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"16px" }}>Mes statistiques</h3>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+          {[
+            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><path d="M3 17l4-12 4 5 4-8 4 15"/><path d="M3 20h18"/></svg>,"Parties jouées", myPast.length],
+            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,"Slots créés", myCreated.length],
+            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,"Membres joués", partners.size],
+            [<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,"Feedbacks", myReviews.length],
+          ].map(([icon,label,val])=>(
+            <div key={label} style={{ background:T.surfaceAlt, borderRadius:"10px", padding:"14px", textAlign:"center" }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:"8px" }}>{icon}</div>
+              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"24px", fontWeight:500, color:T.accent }}>{val}</div>
+              <div style={{ fontSize:"11px", color:T.textLight, marginTop:"2px" }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Handicap tracker ── */}
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"14px" }}>Suivi de mon index</h3>
+        <div style={{ display:"flex", gap:"8px", marginBottom:"14px" }}>
+          <input
+            type="number" step="0.1" placeholder="Ex: 12.4"
+            value={newIndex} onChange={e=>setNewIndex(e.target.value)}
+            style={{ flex:1, padding:"9px 12px", borderRadius:T.radiusSm, border:`1.5px solid ${T.border}`, fontSize:"14px", fontFamily:"'DM Sans',sans-serif", outline:"none", background:T.surface, color:T.text }}
+          />
+          <button onClick={saveIndex} style={{ padding:"9px 18px", borderRadius:T.radiusSm, background:T.accent, color:"#fff", border:"none", fontSize:"13px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
+            Enregistrer
+          </button>
+        </div>
+        {indexHistory.length === 0 && (
+          <p style={{ fontSize:"13px", color:T.textLight, fontStyle:"italic" }}>Aucun index enregistré — commence à tracer ton évolution !</p>
+        )}
+        {indexHistory.length > 0 && (
+          <>
+            {/* Mini graphe en barres */}
+            <div style={{ display:"flex", alignItems:"flex-end", gap:"4px", height:"60px", marginBottom:"8px" }}>
+              {indexHistory.slice(-12).map((e,i)=>{
+                const all  = indexHistory.slice(-12).map(x=>x.value);
+                const mn   = Math.min(...all)-1;
+                const mx   = Math.max(...all)+1;
+                const pct  = mx===mn ? 0.5 : (e.value-mn)/(mx-mn);
+                const h    = Math.max(8, Math.round(pct*52));
+                const isLast = i===indexHistory.slice(-12).length-1;
+                return (
+                  <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end" }}>
+                    <div style={{ width:"100%", height:`${h}px`, borderRadius:"4px 4px 0 0", background: isLast ? T.accent : T.accentLight, transition:"height .3s" }} title={`${e.value} — ${e.date}`} />
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"10px", color:T.textLight, marginBottom:"12px" }}>
+              <span>{indexHistory.slice(-12)[0]?.date?.slice(5)}</span>
+              <span>Actuel : <strong style={{ color:T.accent }}>{indexHistory[indexHistory.length-1]?.value}</strong></span>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:"6px", maxHeight:"140px", overflowY:"auto" }}>
+              {[...indexHistory].reverse().slice(0,8).map((e,i)=>(
+                <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:"12px", padding:"6px 10px", background:T.surfaceAlt, borderRadius:"8px" }}>
+                  <span style={{ color:T.textMid }}>{formatDate(e.date)}</span>
+                  <span style={{ fontWeight:600, color:T.accent }}>Index {e.value}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Badges ── */}
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"14px" }}>Mes badges</h3>
+        {badges.length === 0 && (
+          <p style={{ fontSize:"13px", color:T.textLight, fontStyle:"italic" }}>Joue avec l'équipe pour débloquer tes premiers badges !</p>
+        )}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:"10px" }}>
+          {BADGES.map(b=>{
+            const unlocked = badges.some(ub=>ub.id===b.id);
+            return (
+              <div key={b.id} style={{ background: unlocked ? T.accentLight : T.surfaceAlt, borderRadius:"12px", padding:"14px 12px", textAlign:"center", border:`1.5px solid ${unlocked ? T.accent+"44" : T.border}`, opacity: unlocked ? 1 : 0.45, transition:"all .2s" }}>
+                <div style={{ fontSize:"26px", marginBottom:"6px" }}>{b.icon}</div>
+                <div style={{ fontSize:"12px", fontWeight:600, color: unlocked ? T.accent : T.textMid, marginBottom:"3px" }}>{b.label}</div>
+                <div style={{ fontSize:"10px", color:T.textLight, lineHeight:1.3 }}>{b.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Classement équipe ── */}
+      <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"20px", boxShadow:T.shadow }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, marginBottom:"14px" }}>Classement équipe</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+          {rankingPlayed.map((p,i)=>{
+            const isMe = p.uid===currentUser.uid;
+            const medals = ["🥇","🥈","🥉"];
+            return (
+              <div key={p.uid} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", background: isMe ? T.accentLight : T.surfaceAlt, borderRadius:"10px", border: isMe ? `1.5px solid ${T.accent}44` : "none" }}>
+                <span style={{ fontSize:"18px", width:"24px", textAlign:"center" }}>{medals[i] || `${i+1}`}</span>
+                <Ava profile={p} size={32}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:"13px", fontWeight:600, color:T.text }}>{p.firstName} {p.lastName || ""}</div>
+                  {p.index && <div style={{ fontSize:"11px", color:T.textLight }}>Index {p.index}</div>}
+                </div>
+                <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color: isMe ? T.accent : T.textMid }}>{p.count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ─── AGENDA VIEW ─────────────────────────────────────────────────────────────
+function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, onOpenSlot }) {
+  // Si slots passés depuis le parent (ProfileTab), on les utilise directement
+  // Sinon on fait notre propre subscription (usage standalone)
+  const [localSlots, setLocalSlots] = useState([]);
+  const slots = slotsFromParent !== undefined ? slotsFromParent : localSlots;
+
+  useEffect(() => {
+    if (slotsFromParent !== undefined) return; // slots gérés par le parent
+    const unsub = onSnapshot(query(col("slots"), orderBy("date")), snap => {
+      setLocalSlots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [slotsFromParent]);
+
+  return (
+    <CalendarView
+      slots={slots}
+      profiles={profiles}
+      currentUser={currentUser}
+      onOpenSlot={onOpenSlot}
+      onAddSlot={onAddSlot}
+    />
+  );
+}
+
+
+// ─── BADGES ──────────────────────────────────────────────────────────────────
+const BADGES = [
+  { id:"first_slot",    icon:"⛳", label:"Premier départ",     desc:"A rejoint son premier slot",          condition:(stats)=>stats.played>=1 },
+  { id:"slot_10",       icon:"🏌️", label:"Golfeur régulier",   desc:"10 parties jouées",                  condition:(stats)=>stats.played>=10 },
+  { id:"slot_50",       icon:"🏆", label:"50 parties jouées",  desc:"Un vrai habitué du parcours",        condition:(stats)=>stats.played>=50 },
+  { id:"creator_5",     icon:"📅", label:"Organisateur",       desc:"A créé 5 slots",                     condition:(stats)=>stats.created>=5 },
+  { id:"social",        icon:"🤝", label:"Social Butterfly",   desc:"A joué avec 5 membres différents",   condition:(stats)=>stats.partners>=5 },
+  { id:"reviewer",      icon:"✍️", label:"Critique golf",      desc:"A publié 3 feedbacks",               condition:(stats)=>stats.reviews>=3 },
+  { id:"early_bird",    icon:"🌅", label:"Lève-tôt",           desc:"A joué avant 8h",                   condition:(stats)=>stats.earlyBird>=1 },
+  { id:"index_tracker", icon:"📈", label:"Index Tracker",      desc:"A enregistré 5 index",               condition:(stats)=>stats.indexEntries>=5 },
+  { id:"team_player",   icon:"👥", label:"Esprit d'équipe",    desc:"Membre d'une équipe",                condition:(stats)=>stats.inTeam },
+];
+
+function computeBadges(uid, slots, reviews, profiles, memberships) {
+  const mySlots   = slots.filter(s => s.participants?.includes(uid));
+  const myCreated = slots.filter(s => s.author === uid);
+  const myReviews = reviews.filter(r => r.author === uid);
+  const partners  = new Set(mySlots.flatMap(s => s.participants || []).filter(u => u !== uid));
+  const earlyBird = mySlots.filter(s => s.time && parseInt(s.time.split(":")[0]) < 8).length;
+  const inTeam    = memberships.some(m => m.userId === uid);
+  const pr        = profiles[uid];
+  const indexEntries = pr?.indexHistory?.length || 0;
+
+  const stats = {
+    played: mySlots.length,
+    created: myCreated.length,
+    reviews: myReviews.length,
+    partners: partners.size,
+    earlyBird,
+    inTeam,
+    indexEntries,
+  };
+  return BADGES.filter(b => b.condition(stats));
 }
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
@@ -2170,6 +2738,7 @@ export default function App() {
   const [showLang,    setShowLang]    = useState(false);
   const [globalLang,  setGlobalLang]  = useState(() => { try { return localStorage.getItem("fw-lang") || "fr"; } catch { return "fr"; } });
   const [filterActivity, setFilterActivity] = useState("all");
+  const [slotsView, setSlotsView] = useState("list"); // "list" | "calendar" 
   const [selectedSlot,  setSelectedSlot]  = useState(null); // slot en vue détail
   const [loading,     setLoading]     = useState(true);
 
@@ -2189,6 +2758,7 @@ export default function App() {
   const [slotLocation, setSlotLocation] = useState("");
   const [slotMax,      setSlotMax]      = useState(4);
   const [slotNote,     setSlotNote]     = useState("");
+  const [slotIsPoll,   setSlotIsPoll]   = useState(false); // mode sondage dispo
 
   // review form
   const [showRev,   setShowRev]   = useState(false);
@@ -2210,7 +2780,26 @@ export default function App() {
     setViewedProfile(profile);
   }
 
+  // Ouvrir le détail d'un slot (depuis le calendrier)
+  const [detailSlot, setDetailSlot] = useState(null);
+  function openSlotDetail(slot) { setDetailSlot(slot); }
+
   function notify(msg) { setToast(msg); setTimeout(() => setToast(null), 3200); }
+
+  // Notifications push navigateur
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      // Demander la permission après 3 secondes (moins intrusif)
+      const t = setTimeout(() => Notification.requestPermission(), 3000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  function pushNotif(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try { new Notification(title, { body, icon: "/favicon.ico" }); } catch {}
+    }
+  }
 
   // ── NAVIGATION RETOUR — listener stable via refs ──────────────────────────
   const navRef = useRef({});
@@ -2374,20 +2963,26 @@ export default function App() {
     const id = Date.now().toString();
     // teamId = première team de l'utilisateur (ou null si pas encore de team)
     const myTeamId = profiles[currentUser.uid]?.teamsIds?.[0] || null;
-    const s = { id, author: currentUser.uid, teamId: myTeamId, activityType: slotActivity, date: slotDate, time: slotTime, course: act.hasCourse ? slotCourse : "", location: !act.hasCourse ? slotLocation : "", maxPlayers: act.hasMaxPlayers !== false ? slotMax : 1, participants: [currentUser.uid], note: slotNote, createdAt: new Date().toISOString() };
+    const s = { id, author: currentUser.uid, teamId: myTeamId, activityType: slotActivity, date: slotDate, time: slotTime, course: act.hasCourse ? slotCourse : "", location: !act.hasCourse ? slotLocation : "", maxPlayers: act.hasMaxPlayers !== false ? slotMax : 1, participants: [currentUser.uid], note: slotNote, isPoll: slotIsPoll, pollVotes: slotIsPoll ? {} : null, createdAt: new Date().toISOString() };
     await fbSet(`slots/${id}`, s);
     // Notif avec expiresAt = date du créneau + 1 jour
     const authorName = profiles[currentUser.uid]?.firstName || currentUser.username;
     const dateStr = new Date(slotDate + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
     const notifText = `${authorName} propose ${act.label.toLowerCase()}${s.course ? " · " + s.course.split(" – ")[0] : s.location ? " · " + s.location : ""} le ${dateStr} à ${slotTime}`;
     await fbSet(`notifs/${id}`, { id, type: slotActivity, text: notifText, author: currentUser.uid, teamId: myTeamId, readBy: [currentUser.uid], createdAt: new Date().toISOString(), expiresAt: notifExpiresAt(slotDate) });
-    setShowSlot(false); setSlotNote(""); setSlotDate(""); setSlotTime(""); setSlotCourse(""); setSlotLocation("");
+    setShowSlot(false); setSlotNote(""); setSlotDate(""); setSlotTime(""); setSlotCourse(""); setSlotLocation(""); setSlotIsPoll(false);
     notify("Slot proposé · Équipe notifiée ✓");
   }
 
   async function handleJoin(id) {
     await updateDoc(doc(db, `slots/${id}`), { participants: arrayUnion(currentUser.uid) });
     notify("Vous avez rejoint la partie");
+    // Notif push locale
+    const s = slots.find(sl=>sl.id===id);
+    if (s) {
+      const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+      pushNotif("Fairway", `Vous avez rejoint ${act.label}${s.course?" · "+s.course.split(" – ")[0]:""} le ${formatDate(s.date)}`);
+    }
   }
   async function handleLeave(id) {
     await updateDoc(doc(db, `slots/${id}`), { participants: arrayRemove(currentUser.uid) });
@@ -2663,11 +3258,23 @@ export default function App() {
                 <div style={{ position: "absolute", inset: 0, background: "rgba(247,244,239,0.58)" }} />
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                   <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: T.text }}>{TL.slots}</h2>
-                  {upcoming.length > 0 && <span style={{ fontSize: "12px", color: T.textLight }}>{upcoming.length} {TL.upcoming.toLowerCase()}</span>}
+                  <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                    {upcoming.length > 0 && slotsView==="list" && <span style={{ fontSize: "12px", color: T.textLight }}>{upcoming.length} {TL.upcoming.toLowerCase()}</span>}
+                    {/* Toggle vue liste / calendrier */}
+                    <div style={{ display:"flex", background:T.surfaceAlt, borderRadius:"10px", padding:"3px", border:`1px solid ${T.border}` }}>
+                      <button onClick={()=>setSlotsView("list")} style={{ width:"32px", height:"28px", borderRadius:"8px", border:"none", background: slotsView==="list" ? T.surface : "transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow: slotsView==="list" ? T.shadow : "none", transition:"all .15s" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={slotsView==="list" ? T.accent : T.textMid} strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill={slotsView==="list"?T.accent:T.textMid}/><circle cx="3" cy="12" r="1" fill={slotsView==="list"?T.accent:T.textMid}/><circle cx="3" cy="18" r="1" fill={slotsView==="list"?T.accent:T.textMid}/></svg>
+                      </button>
+                      <button onClick={()=>setSlotsView("calendar")} style={{ width:"32px", height:"28px", borderRadius:"8px", border:"none", background: slotsView==="calendar" ? T.surface : "transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow: slotsView==="calendar" ? T.shadow : "none", transition:"all .15s" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={slotsView==="calendar" ? T.accent : T.textMid} strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                {usedActivityTypes.length > 1 && (
+                {/* Filtres type — seulement en vue liste */}
+                {slotsView === "list" && usedActivityTypes.length > 1 && (
                   <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px", marginBottom: "18px" }}>
                     <button onClick={() => setFilterActivity("all")} style={{ padding: "7px 14px", borderRadius: "20px", fontSize: "12px", fontWeight: filterActivity === "all" ? 600 : 400, border: `1.5px solid ${filterActivity === "all" ? T.accent : T.border}`, background: filterActivity === "all" ? T.accentLight : T.surface, color: filterActivity === "all" ? T.accent : T.textMid, cursor: "pointer", whiteSpace: "nowrap", transition: "all .15s", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>Tous</button>
                     {usedActivityTypes.map(id => { const act = ACTIVITY_TYPES.find(a => a.id === id) || ACTIVITY_TYPES[0]; return (
@@ -2677,20 +3284,30 @@ export default function App() {
                     );})}
                   </div>
                 )}
-                {upcoming.length === 0 && (
+                {/* Vue calendrier dans Slots */}
+                {slotsView === "calendar" && (
+                  <CalendarView
+                    slots={visibleSlots}
+                    profiles={profiles}
+                    currentUser={currentUser}
+                    onOpenSlot={openSlotDetail}
+                    onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }}
+                  />
+                )}
+                {slotsView === "list" && upcoming.length === 0 && (
                   <div style={{ textAlign: "center", padding: "64px 20px" }}>
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 14px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                     <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucun créneau à venir</p>
                     <p style={{ fontSize: "13px", color: T.textLight }}>Proposez une activité à l'équipe !</p>
                   </div>
                 )}
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {slotsView === "list" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   {upcoming.map(s => (
                           <div key={s.id} style={{ cursor: "pointer" }}>
                             <SlotCard slot={s} profiles={profiles} currentUser={currentUser} onJoin={handleJoin} onLeave={handleLeave} onDelete={handleDelSlot} onOpenProfile={openProfile} />
                           </div>
                         ))}
-                </div>
+                </div>}
                 {past.length > 0 && (
                   <div style={{ marginTop: "40px" }}>
                     <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "18px", fontWeight: 500, color: T.text, marginBottom: "14px" }}>Sessions passées</h3>
@@ -2771,7 +3388,7 @@ export default function App() {
 
           {/* ══ PROFILE ══ */}
           {tab === "profile" && (
-            <ProfileTab currentUser={currentUser} profiles={profiles} teams={teams} memberships={memberships} onSave={handleSaveProfile} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} notify={notify} />
+            <ProfileTab currentUser={currentUser} profiles={profiles} teams={teams} memberships={memberships} slots={slots} reviews={reviews} onSave={handleSaveProfile} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} notify={notify} onOpenProfile={openProfile} onOpenSlot={openSlotDetail} onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }} />
           )}
         </main>
 
@@ -2812,7 +3429,21 @@ export default function App() {
             </Fld>
           )}
           <Fld label="Note (optionnel)"><Txta value={slotNote} onChange={e => setSlotNote(e.target.value)} placeholder="Rendez-vous au parking à 8h30…" rows={2} /></Fld>
-          <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px", marginTop: "4px" }} onClick={handleAddSlot}>Proposer le créneau</Btn>
+          {/* Toggle sondage de disponibilité */}
+          <button onClick={() => setSlotIsPoll(v => !v)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", borderRadius:T.radiusSm, border:`1.5px solid ${slotIsPoll ? T.accent : T.border}`, background: slotIsPoll ? T.accentLight : T.surface, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", marginTop:"4px" }}>
+            <span style={{ fontSize:"13px", color: slotIsPoll ? T.accent : T.textMid, fontWeight: slotIsPoll ? 600 : 400 }}>
+              Sondage de disponibilité
+            </span>
+            <span style={{ fontSize:"11px", color: slotIsPoll ? T.accent : T.textLight }}>
+              {slotIsPoll ? "Activé — les membres votent" : "Désactivé"}
+            </span>
+          </button>
+          {slotIsPoll && (
+            <div style={{ padding:"10px 14px", background:`${T.accent}0d`, borderRadius:T.radiusSm, border:`1px solid ${T.accent}22`, fontSize:"12px", color:T.textMid, lineHeight:1.5 }}>
+              Les membres recevront une notification et pourront voter ✅ Dispo / ❌ Pas dispo avant que le slot soit confirmé.
+            </div>
+          )}
+          <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px", marginTop: "4px" }} onClick={handleAddSlot}>{slotIsPoll ? "Lancer le sondage" : "Proposer le Slot"}</Btn>
         </Modal>
 
         {/* ── MODAL AVIS ── */}
