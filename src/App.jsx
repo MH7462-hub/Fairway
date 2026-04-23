@@ -2675,7 +2675,7 @@ export default function App() {
   const [showLang,    setShowLang]    = useState(false);
   const [globalLang,  setGlobalLang]  = useState(() => { try { return localStorage.getItem("fw-lang") || "fr"; } catch { return "fr"; } });
   const [filterActivity, setFilterActivity] = useState("all");
-  const [slotsView, setSlotsView] = useState("list"); // "list" | "calendar" 
+  const [slotsView, setSlotsView] = useState("calendar"); // "list" | "calendar" 
   const [selectedSlot,  setSelectedSlot]  = useState(null); // slot en vue détail
   const [loading,     setLoading]     = useState(true);
 
@@ -3099,6 +3099,26 @@ export default function App() {
         {toast && <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: T.text, color: "#fff", padding: "11px 20px", borderRadius: "30px", fontSize: "13px", fontWeight: 500, zIndex: 400, whiteSpace: "nowrap", boxShadow: T.shadowMd, animation: "toastIn .25s cubic-bezier(0.34,1.56,0.64,1)", fontFamily: "'DM Sans',sans-serif" }}>{toast}</div>}
         {lightbox && <Lightbox photos={lightbox.photos} index={lightbox.index} onClose={() => setLightbox(null)} onNav={d => setLightbox(lb => ({ ...lb, index: (lb.index + d + lb.photos.length) % lb.photos.length }))} />}
         {viewedProfile && <MemberProfileModal profile={viewedProfile} onClose={() => setViewedProfile(null)} />}
+
+        {/* ── SLOT DETAIL — bottom sheet avec SlotCard complète ── */}
+        {detailSlot && (
+          <div onClick={() => setDetailSlot(null)} style={{ position:"fixed", inset:0, background:"rgba(26,23,20,0.55)", zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:T.bg, borderRadius:"24px 24px 0 0", width:"100%", maxWidth:"680px", maxHeight:"90vh", overflowY:"auto", animation:"slideUp .25s cubic-bezier(.22,1,.36,1)", paddingBottom:"40px" }}>
+              <div style={{ width:"36px", height:"4px", borderRadius:"2px", background:T.border, margin:"14px auto 0" }} />
+              <div style={{ padding:"16px 16px 0" }}>
+                <SlotCard
+                  slot={detailSlot}
+                  profiles={profiles}
+                  currentUser={currentUser}
+                  onJoin={(id) => { handleJoin(id); setDetailSlot(s => ({ ...s, participants: [...(s.participants||[]), currentUser.uid] })); }}
+                  onLeave={(id) => { handleLeave(id); setDetailSlot(s => ({ ...s, participants: (s.participants||[]).filter(u => u !== currentUser.uid) })); }}
+                  onDelete={(id) => { handleDelSlot(id); setDetailSlot(null); }}
+                  onOpenProfile={(p) => { setDetailSlot(null); openProfile(p); }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* HEADER — fond vert foncé, logo crème natif */}
         <header style={{ background: GREEN, borderBottom: "none", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(28,74,48,0.18)" }}>
