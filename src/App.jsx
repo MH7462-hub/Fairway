@@ -1973,7 +1973,7 @@ function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGol
 }
 
 // ─── PROFILE TAB ─────────────────────────────────────────────────────────────
-function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews, onSave, onLogout, onDeleteAccount, notify, onOpenProfile, onOpenSlot, onAddSlot, onSwitchTeam, activeTeamId, myTeamIds = [] }) {
+function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews, onSave, onLogout, onDeleteAccount, notify, onOpenProfile, onOpenSlot, onAddSlot, onSwitchTeam, activeTeamId, myTeamIds = [], slotsReady = false }) {
   const p = profiles[currentUser.uid] || {};
   const [photo,          setPhoto]          = useState(p.photo || "");
   const [firstName,      setFirstName]      = useState(p.firstName || "");
@@ -2220,6 +2220,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
             slots={slots}
             onOpenSlot={onOpenSlot}
             onAddSlot={onAddSlot}
+            slotsReady={slotsReady}
           />
           {/* Séparateur Favoris */}
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
@@ -2245,7 +2246,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
 
       {/* ── HISTORIQUE ── */}
       {activeSection === "historique" && (
-        <HistoriqueView slots={slots} profiles={profiles} currentUser={currentUser} />
+        <HistoriqueView slots={slots} profiles={profiles} currentUser={currentUser} slotsReady={slotsReady} />
       )}
 
 
@@ -2579,7 +2580,7 @@ function DashboardView({ slots, profiles, currentUser, teams, memberships, onOpe
 }
 
 // ─── HISTORIQUE VIEW ─────────────────────────────────────────────────────────
-function HistoriqueView({ slots, profiles, currentUser }) {
+function HistoriqueView({ slots, profiles, currentUser, slotsReady = true }) {
   const today  = new Date().toISOString().split("T")[0];
   const [activeTab, setActiveTab] = useState("all");
   const [scoreModal, setScoreModal] = useState(null); // slot pour saisir score
@@ -2638,7 +2639,12 @@ function HistoriqueView({ slots, profiles, currentUser }) {
         </div>
       )}
 
-      {filtered.length === 0 && (
+      {!slotsReady && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+          {[1,2,3].map(i=><div key={i} style={{ height:"64px", borderRadius:"14px", background:T.surfaceAlt, animation:"pulse 1.5s ease-in-out infinite" }}/>)}
+        </div>
+      )}
+      {slotsReady && filtered.length === 0 && (
         <div style={{ textAlign:"center", padding:"48px 20px" }}>
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><path d="M3 17l4-12 4 5 4-8 4 15"/><path d="M3 20h18"/></svg>
           <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid }}>Aucune partie dans cette catégorie</p>
@@ -2646,7 +2652,7 @@ function HistoriqueView({ slots, profiles, currentUser }) {
       )}
 
       {/* Liste par thématique */}
-      <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+      {slotsReady && <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
         {filtered.map(s => {
           const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
           const score = scores[s.id];
@@ -2683,7 +2689,7 @@ function HistoriqueView({ slots, profiles, currentUser }) {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* Modal saisie score */}
       {scoreModal && (
@@ -3284,9 +3290,15 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify,
 }
 
 // ─── AGENDA VIEW ─────────────────────────────────────────────────────────────
-function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, onOpenSlot }) {
+function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, onOpenSlot, slotsReady = true }) {
   const [localSlots, setLocalSlots] = useState([]);
+  const [localReady, setLocalReady] = useState(false);
   const slots = slotsFromParent !== undefined ? slotsFromParent : localSlots;
+  // isReady = true seulement quand Firebase a confirmé les données
+  // On ne fait jamais confiance à un tableau vide au premier rendu
+  const isReady = slotsFromParent !== undefined ? slotsReady : localReady;
+  // Protection supplémentaire : si slotsFromParent est passé mais vide ET pas ready, attendre
+  const showContent = isReady;
   const [view, setView]           = useState("list"); // "list" | "calendar"
   const [filterPlayer, setFilterPlayer] = useState("all");
   const [collapsed, setCollapsed] = useState({}); // { dateStr: bool }
@@ -3295,6 +3307,7 @@ function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, 
     if (slotsFromParent !== undefined) return;
     const unsub = onSnapshot(query(col("slots"), orderBy("date")), snap => {
       setLocalSlots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLocalReady(true);
     });
     return unsub;
   }, [slotsFromParent]);
@@ -3377,8 +3390,16 @@ function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, 
 
       <div style={{ height:"1px", background:T.border, marginBottom:"20px" }}/>
 
+      {/* ── Chargement ── */}
+      {!showContent && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+          {[1,2,3].map(i => (
+            <div key={i} style={{ height:"70px", borderRadius:"14px", background:T.surfaceAlt, animation:"pulse 1.5s ease-in-out infinite" }}/>
+          ))}
+        </div>
+      )}
       {/* ── Aucun slot ── */}
-      {Object.keys(grouped).length === 0 && (
+      {showContent && Object.keys(grouped).length === 0 && (
         <div style={{ textAlign:"center", padding:"48px 20px" }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
           <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid }}>Aucun Tee Time à venir</p>
@@ -3388,7 +3409,7 @@ function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, 
 
       {/* ── Groupes par date ── */}
       <div style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
-        {Object.entries(grouped).map(([ds, daySlots]) => {
+        {showContent && Object.entries(grouped).map(([ds, daySlots]) => {
           const isOpen   = !collapsed[ds];
           const todayDay = isToday(ds);
           const tomDay   = isTomorrow(ds);
@@ -3679,6 +3700,7 @@ export default function App() {
   const [slotsCollapsed, setSlotsCollapsed] = useState({}); // { dateStr: bool }
   const [selectedSlot,  setSelectedSlot]  = useState(null); // slot en vue détail
   const [loading,     setLoading]     = useState(true);
+  const [slotsReady,  setSlotsReady]  = useState(false); // true dès que Firebase a répondu
 
   // auth
   const [authMode,  setAuthMode]  = useState("login");
@@ -3800,6 +3822,7 @@ export default function App() {
     });
     const unsubSlots = onSnapshot(query(col("slots"), orderBy("date")), snap => {
       setSlots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setSlotsReady(true); // Firebase a répondu — données prêtes
     });
     const unsubReviews = onSnapshot(query(col("reviews"), orderBy("createdAt", "desc")), snap => {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -4087,11 +4110,18 @@ export default function App() {
   const currentTeam = currentTeamId ? teams[currentTeamId] : null;
   // ISOLATION : on ne voit que le contenu de l'équipe active
   // Exception : pas d'équipe active → on ne voit que son propre contenu
-  const visibleSlots = slots.filter(s =>
-    currentTeamId
-      ? s.teamId === currentTeamId
-      : s.author === currentUser?.uid
-  );
+  const visibleSlots = slots.filter(s => {
+    if (!currentTeamId) {
+      // Pas d'équipe → seulement ses propres slots
+      return s.author === currentUser?.uid || s.participants?.includes(currentUser?.uid);
+    }
+    if (s.teamId) {
+      // Slot avec teamId → strictement l'équipe active
+      return s.teamId === currentTeamId;
+    }
+    // Slot SANS teamId (ancien contenu) → visible si je participe ET que je suis dans une équipe
+    return s.participants?.includes(currentUser?.uid) || s.author === currentUser?.uid;
+  });
   const upcoming = visibleSlots.filter(s => s.date >= today && (filterActivity === "all" || s.activityType === filterActivity)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const past = visibleSlots.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   // Feedbacks visibles : ceux de tous les membres de mon équipe active
@@ -4630,7 +4660,7 @@ export default function App() {
 
           {/* ══ PROFILE ══ */}
           {tab === "profile" && (
-            <ProfileTab currentUser={currentUser} profiles={profiles} teams={teams} memberships={memberships} slots={visibleSlots} reviews={visibleReviews} currentTeamId={currentTeamId} currentTeam={currentTeam} onSave={handleSaveProfile} onSwitchTeam={switchTeam} activeTeamId={activeTeamId} myTeamIds={myTeamIds} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} notify={notify} onOpenProfile={openProfile} onOpenSlot={openSlotDetail} onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }} />
+            <ProfileTab currentUser={currentUser} profiles={profiles} teams={teams} memberships={memberships} slots={visibleSlots} reviews={visibleReviews} currentTeamId={currentTeamId} currentTeam={currentTeam} onSave={handleSaveProfile} onSwitchTeam={switchTeam} activeTeamId={activeTeamId} myTeamIds={myTeamIds} slotsReady={slotsReady} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} notify={notify} onOpenProfile={openProfile} onOpenSlot={openSlotDetail} onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }} />
           )}
         </main>
 
