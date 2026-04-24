@@ -1958,7 +1958,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
   const otherProfiles = Object.values(profiles).filter(pr => pr.uid !== currentUser.uid);
   const favProfiles   = otherProfiles.filter(pr => favorites.includes(pr.uid));
 
-  const sections = [["profil","Mon profil"],["stats","Stats & Badges"],["historique","Historique"],["equipe","Mes équipes"],["favoris","Favoris"],["agenda","Agenda"]];
+  const sections = [["profil","Mon profil"],["equipe","Mes équipes"],["stats","Stats & Badges"],["agenda","Agenda & Favoris"],["historique","Historique"]];
 
   return (
     <div style={{ animation: "slideUp .2s ease" }}>
@@ -2125,30 +2125,37 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
       )}
 
       {/* ── FAVORIS ── */}
-      {activeSection === "favoris" && (
-        <FavorisSection
-          profiles={profiles} currentUser={currentUser}
-          favorites={favorites} setFavorites={setFavorites}
-          favGolfs={favGolfs} setFavGolfs={setFavGolfs}
-          favApps={favApps} setFavApps={setFavApps}
-          favProfiles={favProfiles}
-          onOpenProfile={onOpenProfile}
-          onSaveAll={() => {
-            const p2 = profiles[currentUser.uid] || {};
-            onSave({ ...p2, favorites, favGolfs, favApps }, null);
-          }}
-        />
-      )}
-
-      {/* ── AGENDA ── */}
+      {/* ── AGENDA & FAVORIS ── */}
       {activeSection === "agenda" && (
-        <AgendaView
-          profiles={profiles}
-          currentUser={currentUser}
-          slots={slots}
-          onOpenSlot={onOpenSlot}
-          onAddSlot={onAddSlot}
-        />
+        <div style={{ display:"flex", flexDirection:"column", gap:"32px" }}>
+          {/* Agenda en priorité */}
+          <AgendaView
+            profiles={profiles}
+            currentUser={currentUser}
+            slots={slots}
+            onOpenSlot={onOpenSlot}
+            onAddSlot={onAddSlot}
+          />
+          {/* Séparateur */}
+          <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
+            <div style={{ flex:1, height:"1px", background:T.border }}/>
+            <span style={{ fontSize:"11px", fontWeight:600, color:T.textLight, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:"'DM Sans',sans-serif" }}>Mes Favoris</span>
+            <div style={{ flex:1, height:"1px", background:T.border }}/>
+          </div>
+          {/* Favoris en dessous */}
+          <FavorisSection
+            profiles={profiles} currentUser={currentUser}
+            favorites={favorites} setFavorites={setFavorites}
+            favGolfs={favGolfs} setFavGolfs={setFavGolfs}
+            favApps={favApps} setFavApps={setFavApps}
+            favProfiles={favProfiles}
+            onOpenProfile={onOpenProfile}
+            onSaveAll={() => {
+              const p2 = profiles[currentUser.uid] || {};
+              onSave({ ...p2, favorites, favGolfs, favApps }, null);
+            }}
+          />
+        </div>
       )}
 
       {/* ── HISTORIQUE ── */}
@@ -3469,9 +3476,9 @@ export default function App() {
                 </div>
               )}
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "20px" }}>
                 <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: T.text }}>Feedbacks</h2>
-                <span style={{ fontSize: "12px", color: T.textLight }}>{filtRev.length} feedbacks</span>
+                <span style={{ fontSize: "12px", color: T.textLight }}>{filtRev.length} feedback{filtRev.length !== 1 ? "s" : ""}</span>
               </div>
               {filtRev.length === 0 && (
                 <div style={{ textAlign: "center", padding: "64px 20px" }}>
@@ -3480,9 +3487,54 @@ export default function App() {
                   <p style={{ fontSize: "13px", color: T.textLight }}>Partagez votre retour sur un parcours !</p>
                 </div>
               )}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {filtRev.map(r => <ReviewCard key={r.id} rev={r} profiles={profiles} currentUser={currentUser} onDelete={handleDelReview} onEdit={openEditReview} onLightbox={(ph, i) => setLightbox({ photos: ph, index: i })} onOpenProfile={openProfile} />)}
-              </div>
+              {filtRev.length > 0 && (() => {
+                // Grouper par région en utilisant GOLF_COURSES
+                const getRegion = (course) => {
+                  if (!course) return "Autres";
+                  const found = ALL_GOLF_COURSES.find(g => g.label === course || course.startsWith(g.label.split(" – ")[0]));
+                  return found?.region || (course.includes(" – ") ? course.split(" – ")[1] : "Autres");
+                };
+                // Si filtre actif → pas de groupement, liste simple
+                if (filterCourse !== "Tous") {
+                  return (
+                    <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+                      {filtRev.map(r => <ReviewCard key={r.id} rev={r} profiles={profiles} currentUser={currentUser} onDelete={handleDelReview} onEdit={openEditReview} onLightbox={(ph, i) => setLightbox({ photos: ph, index: i })} onOpenProfile={openProfile} />)}
+                    </div>
+                  );
+                }
+                // Grouper par région
+                const grouped = {};
+                filtRev.forEach(r => {
+                  const reg = getRegion(r.course);
+                  if (!grouped[reg]) grouped[reg] = [];
+                  grouped[reg].push(r);
+                });
+                // Ordre : IDF en premier, Étranger en dernier, reste alphabétique
+                const regionOrder = (r) => r === "Île-de-France" ? "0" : r === "Étranger" || r === "International" ? "z" : r;
+                const sortedRegions = Object.keys(grouped).sort((a,b) => regionOrder(a).localeCompare(regionOrder(b)));
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:"28px" }}>
+                    {sortedRegions.map(region => (
+                      <div key={region}>
+                        {/* Header région */}
+                        <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"14px" }}>
+                          <div style={{ height:"1px", flex:1, background:T.border }}/>
+                          <div style={{ display:"flex", alignItems:"center", gap:"7px", padding:"5px 14px", background:T.accentLight, borderRadius:"20px", border:`1px solid ${T.accent}22`, flexShrink:0 }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="2.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                            <span style={{ fontSize:"11px", fontWeight:700, color:T.accent, letterSpacing:"0.06em", textTransform:"uppercase", fontFamily:"'DM Sans',sans-serif" }}>{region}</span>
+                            <span style={{ fontSize:"10px", color:`${T.accent}88`, fontFamily:"'DM Sans',sans-serif" }}>{grouped[region].length}</span>
+                          </div>
+                          <div style={{ height:"1px", flex:1, background:T.border }}/>
+                        </div>
+                        {/* Reviews de cette région */}
+                        <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+                          {grouped[region].map(r => <ReviewCard key={r.id} rev={r} profiles={profiles} currentUser={currentUser} onDelete={handleDelReview} onEdit={openEditReview} onLightbox={(ph, i) => setLightbox({ photos: ph, index: i })} onOpenProfile={openProfile} />)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
