@@ -2716,27 +2716,176 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
 
 // ─── AGENDA VIEW ─────────────────────────────────────────────────────────────
 function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, onOpenSlot }) {
-  // Si slots passés depuis le parent (ProfileTab), on les utilise directement
-  // Sinon on fait notre propre subscription (usage standalone)
   const [localSlots, setLocalSlots] = useState([]);
   const slots = slotsFromParent !== undefined ? slotsFromParent : localSlots;
+  const [view, setView]           = useState("list"); // "list" | "calendar"
+  const [filterPlayer, setFilterPlayer] = useState("all");
+  const [collapsed, setCollapsed] = useState({}); // { dateStr: bool }
 
   useEffect(() => {
-    if (slotsFromParent !== undefined) return; // slots gérés par le parent
+    if (slotsFromParent !== undefined) return;
     const unsub = onSnapshot(query(col("slots"), orderBy("date")), snap => {
       setLocalSlots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
     return unsub;
   }, [slotsFromParent]);
 
+  const today = new Date().toISOString().split("T")[0];
+  const upcoming = slots
+    .filter(s => s.date >= today)
+    .filter(s => filterPlayer === "all" || s.participants?.includes(filterPlayer))
+    .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+
+  // Tous les participants distincts
+  const allParticipants = [...new Set(slots.flatMap(s => s.participants||[]))]
+    .map(uid => profiles[uid]).filter(Boolean);
+
+  // Grouper par date
+  const grouped = {};
+  upcoming.forEach(s => {
+    if (!grouped[s.date]) grouped[s.date] = [];
+    grouped[s.date].push(s);
+  });
+
+  function toggleCollapse(ds) {
+    setCollapsed(prev => ({ ...prev, [ds]: !prev[ds] }));
+  }
+
+  function dayLabel(ds) {
+    const d = new Date(ds + "T12:00:00");
+    const diff = Math.round((d - new Date(today + "T12:00:00")) / 86400000);
+    if (diff === 0) return "Aujourd'hui";
+    if (diff === 1) return "Demain";
+    return d.toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" });
+  }
+
+  function dayNum(ds)   { return new Date(ds+"T12:00:00").getDate(); }
+  function monthStr(ds) { return new Date(ds+"T12:00:00").toLocaleDateString("fr-FR",{month:"short"}).replace(".","").toUpperCase(); }
+  function isToday(ds)  { return ds === today; }
+  function isTomorrow(ds){ const t=new Date(); t.setDate(t.getDate()+1); return ds===t.toISOString().split("T")[0]; }
+
+  if (view === "calendar") {
+    return (
+      <div>
+        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"16px" }}>
+          <button onClick={()=>setView("list")} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", borderRadius:"20px", border:`1.5px solid ${T.border}`, background:T.surface, color:T.textMid, fontSize:"12px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor"/><circle cx="3" cy="12" r="1.5" fill="currentColor"/><circle cx="3" cy="18" r="1.5" fill="currentColor"/></svg>
+            Vue liste
+          </button>
+        </div>
+        <CalendarView slots={slots} profiles={profiles} currentUser={currentUser} onOpenSlot={onOpenSlot} onAddSlot={onAddSlot} />
+      </div>
+    );
+  }
+
   return (
-    <CalendarView
-      slots={slots}
-      profiles={profiles}
-      currentUser={currentUser}
-      onOpenSlot={onOpenSlot}
-      onAddSlot={onAddSlot}
-    />
+    <div>
+      {/* ── Header avec toggle vue ── */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text, margin:0 }}>Agenda</h3>
+        <button onClick={()=>setView("calendar")} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", borderRadius:"20px", border:`1.5px solid ${T.border}`, background:T.surface, color:T.textMid, fontSize:"12px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Calendrier
+        </button>
+      </div>
+
+      {/* ── Filtre membres ── */}
+      {allParticipants.length > 1 && (
+        <div style={{ display:"flex", gap:"8px", overflowX:"auto", paddingBottom:"4px", marginBottom:"20px" }}>
+          <button onClick={()=>setFilterPlayer("all")} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 14px", borderRadius:"24px", border:`1.5px solid ${filterPlayer==="all"?T.accent:T.border}`, background:filterPlayer==="all"?T.accent:T.surface, color:filterPlayer==="all"?"#fff":T.textMid, fontSize:"12px", fontWeight:filterPlayer==="all"?700:400, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
+            Tous
+          </button>
+          {allParticipants.map(p => (
+            <button key={p.uid} onClick={()=>setFilterPlayer(filterPlayer===p.uid?"all":p.uid)} style={{ display:"flex", alignItems:"center", gap:"7px", padding:"5px 12px 5px 5px", borderRadius:"24px", border:`1.5px solid ${filterPlayer===p.uid?T.accent:T.border}`, background:filterPlayer===p.uid?T.accentLight:T.surface, color:filterPlayer===p.uid?T.accent:T.textMid, fontSize:"12px", fontWeight:filterPlayer===p.uid?600:400, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
+              <Ava profile={p} size={22}/>
+              {p.firstName || p.username}
+              {p.uid===currentUser.uid && <span style={{ fontSize:"10px", opacity:.7 }}>· Moi</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ height:"1px", background:T.border, marginBottom:"20px" }}/>
+
+      {/* ── Aucun slot ── */}
+      {Object.keys(grouped).length === 0 && (
+        <div style={{ textAlign:"center", padding:"48px 20px" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid }}>Aucun Tee Time à venir</p>
+          {onAddSlot && <button onClick={()=>onAddSlot(today)} style={{ marginTop:"14px", padding:"9px 20px", borderRadius:"20px", background:T.accent, color:"#fff", border:"none", fontSize:"13px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontWeight:600 }}>+ Ajouter un Tee Time</button>}
+        </div>
+      )}
+
+      {/* ── Groupes par date ── */}
+      <div style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
+        {Object.entries(grouped).map(([ds, daySlots]) => {
+          const isOpen   = !collapsed[ds];
+          const todayDay = isToday(ds);
+          const tomDay   = isTomorrow(ds);
+          return (
+            <div key={ds}>
+              {/* Header date cliquable */}
+              <button onClick={()=>toggleCollapse(ds)} style={{ width:"100%", display:"flex", alignItems:"center", gap:"14px", background:"none", border:"none", cursor:"pointer", padding:"0 0 14px 0", textAlign:"left" }}>
+                {/* Carré date premium */}
+                <div style={{ width:"52px", height:"56px", borderRadius:"14px", background: todayDay||tomDay ? T.accent : T.surfaceAlt, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow: todayDay ? `0 4px 16px ${T.accent}44` : "none" }}>
+                  <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", fontWeight:700, color: todayDay||tomDay ? "#fff" : T.text, lineHeight:1 }}>{dayNum(ds)}</span>
+                  <span style={{ fontSize:"9px", fontWeight:600, color: todayDay||tomDay ? "rgba(255,255,255,0.7)" : T.textLight, letterSpacing:"0.08em", textTransform:"uppercase", marginTop:"2px" }}>{monthStr(ds)}</span>
+                </div>
+                {/* Infos du jour */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"17px", fontWeight:500, color:T.text, marginBottom:"2px" }}>{dayLabel(ds)}</div>
+                  <div style={{ fontSize:"12px", color:T.textLight }}>{daySlots.length} Tee Time{daySlots.length>1?"s":""}</div>
+                </div>
+                {/* Chevron */}
+                <div style={{ width:"28px", height:"28px", borderRadius:"50%", background:T.surfaceAlt, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+              </button>
+
+              {/* Slots du jour — repliables */}
+              {isOpen && (
+                <div style={{ display:"flex", flexDirection:"column", gap:"10px", paddingLeft:"66px", animation:"slideUp .18s ease" }}>
+                  {daySlots.map(s => {
+                    const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+                    const isIn = s.participants?.includes(currentUser.uid);
+                    const participantProfiles = (s.participants||[]).map(uid=>profiles[uid]).filter(Boolean);
+                    return (
+                      <div key={s.id} onClick={()=>onOpenSlot&&onOpenSlot(s)} style={{ background:T.surface, border:`1.5px solid ${isIn?act.color+"44":T.border}`, borderRadius:"14px", padding:"14px 16px", display:"flex", alignItems:"center", gap:"12px", cursor:"pointer", boxShadow: isIn ? `0 2px 12px ${act.color}18` : T.shadow, transition:"all .15s" }}>
+                        {/* Icône activité */}
+                        <div style={{ width:"40px", height:"40px", borderRadius:"11px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          {act.icon(act.color)}
+                        </div>
+                        {/* Infos */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:600, color:T.text, marginBottom:"3px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {s.activityType==="parcours"&&s.course ? s.course.split(" – ")[0] : act.label}
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                            <span style={{ fontSize:"12px", color:T.textMid, fontWeight:500 }}>{s.time}</span>
+                            <span style={{ fontSize:"12px", color:T.border }}>·</span>
+                            <span style={{ fontSize:"12px", color:T.textLight }}>{s.participants?.length||0} participant{(s.participants?.length||0)>1?"s":""}</span>
+                          </div>
+                        </div>
+                        {/* Avatars participants */}
+                        <div style={{ display:"flex", alignItems:"center", flexShrink:0 }}>
+                          {participantProfiles.slice(0,3).map((p,i) => (
+                            <div key={p.uid} style={{ marginLeft:i>0?"-8px":0, border:`2px solid ${T.surface}`, borderRadius:"50%", position:"relative", zIndex:3-i }}>
+                              <Ava profile={p} size={28}/>
+                            </div>
+                          ))}
+                          {/* Indicateur participation */}
+                          <div style={{ width:"10px", height:"10px", borderRadius:"50%", background: isIn ? act.color : T.border, marginLeft:"6px", flexShrink:0 }}/>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -2826,6 +2975,7 @@ export default function App() {
   const [globalLang,  setGlobalLang]  = useState(() => { try { return localStorage.getItem("fw-lang") || "fr"; } catch { return "fr"; } });
   const [filterActivity, setFilterActivity] = useState("all");
   const [slotsView, setSlotsView] = useState("calendar"); // "list" | "calendar" 
+  const [slotsCollapsed, setSlotsCollapsed] = useState({}); // { dateStr: bool }
   const [selectedSlot,  setSelectedSlot]  = useState(null); // slot en vue détail
   const [loading,     setLoading]     = useState(true);
 
@@ -3401,20 +3551,100 @@ export default function App() {
                     onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }}
                   />
                 )}
-                {slotsView === "list" && upcoming.length === 0 && (
-                  <div style={{ textAlign: "center", padding: "64px 20px" }}>
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 14px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                    <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucun créneau à venir</p>
-                    <p style={{ fontSize: "13px", color: T.textLight }}>Proposez une activité à l'équipe !</p>
-                  </div>
-                )}
-                {slotsView === "list" && <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                  {upcoming.map(s => (
-                          <div key={s.id} style={{ cursor: "pointer" }}>
-                            <SlotCard slot={s} profiles={profiles} currentUser={currentUser} onJoin={handleJoin} onLeave={handleLeave} onDelete={handleDelSlot} onOpenProfile={openProfile} />
+                {slotsView === "list" && (() => {
+                  // Grouper par date
+                  const grouped = {};
+                  upcoming.forEach(s => {
+                    if (!grouped[s.date]) grouped[s.date] = [];
+                    grouped[s.date].push(s);
+                  });
+                  const today2 = new Date().toISOString().split("T")[0];
+                  function dayLabel2(ds) {
+                    const d = new Date(ds+"T12:00:00");
+                    const diff = Math.round((d - new Date(today2+"T12:00:00")) / 86400000);
+                    if (diff===0) return "Aujourd'hui";
+                    if (diff===1) return "Demain";
+                    return d.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+                  }
+                  function dayNum2(ds) { return new Date(ds+"T12:00:00").getDate(); }
+                  function monthStr2(ds) { return new Date(ds+"T12:00:00").toLocaleDateString("fr-FR",{month:"short"}).replace(".","").toUpperCase(); }
+                  function isHighlight(ds) { const diff=Math.round((new Date(ds+"T12:00:00")-new Date(today2+"T12:00:00"))/86400000); return diff<=1; }
+                  function toggleSlotDay(ds) { setSlotsCollapsed(prev=>({...prev,[ds]:!prev[ds]})); }
+
+                  if (Object.keys(grouped).length === 0) return (
+                    <div style={{ textAlign:"center", padding:"64px 20px" }}>
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid, marginBottom:"6px" }}>Aucun Tee Time à venir</p>
+                      <p style={{ fontSize:"13px", color:T.textLight }}>Proposez une activité à l'équipe !</p>
+                    </div>
+                  );
+
+                  return (
+                    <div style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
+                      {Object.entries(grouped).map(([ds, daySlots]) => {
+                        const isOpen = !slotsCollapsed[ds];
+                        const highlight = isHighlight(ds);
+                        return (
+                          <div key={ds}>
+                            {/* Header date cliquable */}
+                            <button onClick={()=>toggleSlotDay(ds)} style={{ width:"100%", display:"flex", alignItems:"center", gap:"14px", background:"none", border:"none", cursor:"pointer", padding:"0 0 14px 0", textAlign:"left" }}>
+                              {/* Carré date */}
+                              <div style={{ width:"52px", height:"56px", borderRadius:"14px", background:highlight?T.accent:T.surfaceAlt, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:highlight?`0 4px 16px ${T.accent}44`:"none" }}>
+                                <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", fontWeight:700, color:highlight?"#fff":T.text, lineHeight:1 }}>{dayNum2(ds)}</span>
+                                <span style={{ fontSize:"9px", fontWeight:600, color:highlight?"rgba(255,255,255,0.7)":T.textLight, letterSpacing:"0.08em", textTransform:"uppercase", marginTop:"2px" }}>{monthStr2(ds)}</span>
+                              </div>
+                              {/* Label */}
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"17px", fontWeight:500, color:T.text, marginBottom:"2px" }}>{dayLabel2(ds)}</div>
+                                <div style={{ fontSize:"12px", color:T.textLight }}>{daySlots.length} Tee Time{daySlots.length>1?"s":""}</div>
+                              </div>
+                              {/* Chevron */}
+                              <div style={{ width:"28px", height:"28px", borderRadius:"50%", background:T.surfaceAlt, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"transform .2s", transform:isOpen?"rotate(180deg)":"rotate(0deg)" }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                              </div>
+                            </button>
+
+                            {/* Slots repliables */}
+                            {isOpen && (
+                              <div style={{ display:"flex", flexDirection:"column", gap:"10px", paddingLeft:"66px", animation:"slideUp .18s ease" }}>
+                                {daySlots.map(s => {
+                                  const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+                                  const isIn = s.participants?.includes(currentUser.uid);
+                                  const participantProfiles = (s.participants||[]).map(uid=>profiles[uid]).filter(Boolean);
+                                  return (
+                                    <div key={s.id} onClick={()=>openSlotDetail(s)} style={{ background:T.surface, border:`1.5px solid ${isIn?act.color+"44":T.border}`, borderRadius:"14px", padding:"14px 16px", display:"flex", alignItems:"center", gap:"12px", cursor:"pointer", boxShadow:isIn?`0 2px 12px ${act.color}18`:T.shadow }}>
+                                      <div style={{ width:"40px", height:"40px", borderRadius:"11px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                        {act.icon(act.color)}
+                                      </div>
+                                      <div style={{ flex:1, minWidth:0 }}>
+                                        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:600, color:T.text, marginBottom:"3px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                                          {s.activityType==="parcours"&&s.course ? s.course.split(" – ")[0] : act.label}
+                                        </div>
+                                        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                                          <span style={{ fontSize:"12px", color:T.textMid, fontWeight:500 }}>{s.time}</span>
+                                          <span style={{ fontSize:"12px", color:T.border }}>·</span>
+                                          <span style={{ fontSize:"12px", color:T.textLight }}>{s.participants?.length||0} participant{(s.participants?.length||0)>1?"s":""}</span>
+                                        </div>
+                                      </div>
+                                      <div style={{ display:"flex", alignItems:"center", flexShrink:0 }}>
+                                        {participantProfiles.slice(0,3).map((p,i)=>(
+                                          <div key={p.uid} style={{ marginLeft:i>0?"-8px":0, border:`2px solid ${T.surface}`, borderRadius:"50%", zIndex:3-i, position:"relative" }}>
+                                            <Ava profile={p} size={28}/>
+                                          </div>
+                                        ))}
+                                        <div style={{ width:"10px", height:"10px", borderRadius:"50%", background:isIn?act.color:T.border, marginLeft:"6px", flexShrink:0 }}/>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                </div>}
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 {past.length > 0 && (
                   <div style={{ marginTop: "40px" }}>
                     <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "18px", fontWeight: 500, color: T.text, marginBottom: "14px" }}>Sessions passées</h3>
