@@ -460,14 +460,14 @@ const ACTIVITY_TYPES = [
     color:"#7C5C2A", colorLight:"#F5EDD8", hasCourse:false, hasMaxPlayers:true,
   },
   {
-    id:"putting", label:"Putting", desc:"Green d'entraînement",
-    icon:(c)=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><circle cx="12" cy="18" r="2"/><path d="M12 16V6"/><path d="M12 6l6 3"/></svg>,
-    color:"#2A5C6E", colorLight:"#E8F3F5", hasCourse:false, hasMaxPlayers:true,
+    id:"approches", label:"Approches & Putting", desc:"Petit jeu, chipping & putting green",
+    icon:(c)=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><circle cx="12" cy="18" r="2"/><path d="M12 16V9"/><path d="M12 9l5 3"/><path d="M5 14c1-2 3-3 5-3"/></svg>,
+    color:"#5C2A6E", colorLight:"#F3E8F5", hasCourse:false, hasMaxPlayers:true,
   },
   {
-    id:"approches", label:"Approches", desc:"Petit jeu & chipping",
-    icon:(c)=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M5 19c0-4 2-7 7-7s7 3 7 7"/><circle cx="12" cy="8" r="3"/></svg>,
-    color:"#5C2A6E", colorLight:"#F3E8F5", hasCourse:false, hasMaxPlayers:true,
+    id:"competition", label:"Compétition", desc:"Tournoi ou compétition officielle",
+    icon:(c)=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M6 9H3a1 1 0 0 0-1 1v4a4 4 0 0 0 4 4"/><path d="M18 9h3a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4"/><path d="M8 2h8v11a4 4 0 0 1-8 0V2z"/><path d="M10 18v3"/><path d="M14 18v3"/><path d="M8 21h8"/></svg>,
+    color:"#C0A000", colorLight:"#FDF8E1", hasCourse:true, hasMaxPlayers:true,
   },
   {
     id:"cours", label:"Cours / Leçon", desc:"Avec un pro",
@@ -3064,6 +3064,31 @@ function OnboardingScreen({ currentUser, onDone }) {
   );
 }
 
+
+// ─── BANNIÈRE "Rejoignez une équipe" ─────────────────────────────────────────
+function NoTeamBanner({ onGoToTeams }) {
+  return (
+    <div style={{ textAlign:"center", padding:"52px 24px" }}>
+      <div style={{ width:"72px", height:"72px", borderRadius:"20px", background:T.accentLight, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px" }}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5" strokeLinecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"20px", fontWeight:500, color:T.text, marginBottom:"10px" }}>
+        Rejoignez une équipe
+      </h3>
+      <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.65, marginBottom:"24px", maxWidth:"280px", margin:"0 auto 24px" }}>
+        Pour accéder aux Tee Times, feedbacks et au classement de votre groupe, vous devez d'abord rejoindre ou créer une équipe.
+      </p>
+      <button onClick={onGoToTeams} style={{ padding:"12px 28px", borderRadius:"14px", background:T.accent, color:"#fff", border:"none", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", boxShadow:`0 4px 16px ${T.accent}44` }}>
+        Gérer mes équipes
+      </button>
+    </div>
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null); // {uid, username}
@@ -3272,16 +3297,44 @@ export default function App() {
 
   async function handleDeleteAccount() {
     if (!currentUser) return;
-    // Supprimer le profil
-    await fbDel(`users/${currentUser.uid}`);
-    // Supprimer ses créneaux (retrait des participants)
-    slots.forEach(async s => {
-      if (s.participants.includes(currentUser.uid)) {
-        await updateDoc(doc(db, `slots/${s.id}`), { participants: arrayRemove(currentUser.uid) });
+    const uid = currentUser.uid;
+    notify("Suppression en cours...");
+    try {
+      // 1. Retrait de toutes les équipes
+      const myTeams = profiles[uid]?.teamsIds || [];
+      for (const teamId of myTeams) {
+        await updateDoc(doc(db, `teams/${teamId}`), { memberIds: arrayRemove(uid) });
+        await fbDel(`memberships/${teamId}_${uid}`);
       }
-    });
-    handleLogout();
-    notify("Compte supprimé.");
+      // 2. Tee Times : retrait des participants ou suppression si créateur
+      for (const s of slots) {
+        if (s.author === uid) {
+          // Supprimer le slot entier si créateur
+          await fbDel(`slots/${s.id}`);
+        } else if (s.participants?.includes(uid)) {
+          // Juste se retirer des participants
+          await updateDoc(doc(db, `slots/${s.id}`), { participants: arrayRemove(uid) });
+        }
+      }
+      // 3. Supprimer ses feedbacks/reviews
+      const myReviews = reviews.filter(r => r.author === uid);
+      for (const r of myReviews) {
+        await fbDel(`reviews/${r.id}`);
+      }
+      // 4. Supprimer ses notifications
+      const myNotifs = notifs.filter(n => n.author === uid);
+      for (const n of myNotifs) {
+        await fbDel(`notifs/${n.id}`);
+      }
+      // 5. Supprimer le profil utilisateur
+      await fbDel(`users/${uid}`);
+      // 6. Logout
+      handleLogout();
+      notify("Compte et données supprimés.");
+    } catch (e) {
+      console.error("Delete account error:", e);
+      notify("Erreur lors de la suppression.");
+    }
   }
 
   async function handleSaveProfile(updatedProfile, creds) {
@@ -3438,11 +3491,18 @@ export default function App() {
   const today = new Date().toISOString().split("T")[0];
   const myTeamIds = profiles[currentUser?.uid]?.teamsIds || [];
   // Filtrage par team : on voit un Tee Time si même team OU pas de teamId (rétrocompat)
-  const visibleSlots = slots.filter(s => !s.teamId || myTeamIds.includes(s.teamId));
+  // ISOLATION : si pas d'équipe → aucun slot visible (sauf les siens propres)
+  const visibleSlots = myTeamIds.length > 0
+    ? slots.filter(s => !s.teamId || myTeamIds.includes(s.teamId))
+    : slots.filter(s => s.author === currentUser?.uid);
   const upcoming = visibleSlots.filter(s => s.date >= today && (filterActivity === "all" || s.activityType === filterActivity)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const past = visibleSlots.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const stats = {}; reviews.forEach(r => { if (!stats[r.course]) stats[r.course] = { total: 0, count: 0 }; stats[r.course].total += r.rating; stats[r.course].count++; });
-  const filtRev = filterCourse === "Tous" ? reviews : reviews.filter(r => r.course === filterCourse);
+  // Reviews visibles : seulement celles de mes équipes (ou les miennes propres)
+  const visibleReviews = myTeamIds.length > 0
+    ? reviews.filter(r => !r.teamId || myTeamIds.includes(r.teamId) || r.author === currentUser?.uid)
+    : reviews.filter(r => r.author === currentUser?.uid);
+  const filtRev = filterCourse === "Tous" ? visibleReviews : visibleReviews.filter(r => r.course === filterCourse);
   const allUpcoming = visibleSlots.filter(s => s.date >= today).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const usedActivityTypes = [...new Set(allUpcoming.map(s => s.activityType || "parcours"))];
   const myProfile = currentUser ? profiles[currentUser.uid] : null;
@@ -3707,7 +3767,10 @@ export default function App() {
                     onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }}
                   />
                 )}
-                {slotsView === "list" && (() => {
+                {myTeamIds.length === 0 && slotsView === "list" && (
+                  <NoTeamBanner onGoToTeams={() => setTab("profile")} />
+                )}
+                {slotsView === "list" && myTeamIds.length > 0 && (() => {
                   // Grouper par date
                   const grouped = {};
                   upcoming.forEach(s => {
@@ -3866,14 +3929,17 @@ export default function App() {
                 <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: T.text }}>Feedbacks</h2>
                 <span style={{ fontSize: "12px", color: T.textLight }}>{filtRev.length} feedback{filtRev.length !== 1 ? "s" : ""}</span>
               </div>
-              {filtRev.length === 0 && (
+              {myTeamIds.length === 0 && (
+                <NoTeamBanner onGoToTeams={() => setTab("profile")} />
+              )}
+              {myTeamIds.length > 0 && filtRev.length === 0 && (
                 <div style={{ textAlign: "center", padding: "64px 20px" }}>
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 14px" }}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucun feedback pour l'instant</p>
                   <p style={{ fontSize: "13px", color: T.textLight }}>Partagez votre retour sur un parcours !</p>
                 </div>
               )}
-              {filtRev.length > 0 && (() => {
+              {myTeamIds.length > 0 && filtRev.length > 0 && (() => {
                 // Grouper par région en utilisant GOLF_COURSES
                 const getRegion = (course) => {
                   if (!course) return "Autres";
