@@ -1075,7 +1075,7 @@ function SlotChat({ slotId, profiles, currentUser, onOpenProfile }) {
 }
 
 // ─── SLOT CARD ───────────────────────────────────────────────────────────────
-function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOpenProfile }) {
+function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOpenProfile, onEdit }) {
   const activity   = ACTIVITY_TYPES.find(a => a.id === slot.activityType) || ACTIVITY_TYPES[0];
   const isFull     = slot.participants.length >= (slot.maxPlayers || 4);
   const hasJoined  = slot.participants.includes(currentUser.uid);
@@ -1196,7 +1196,13 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOp
             {showPlayers && hasJoined && (
               <button onClick={() => onLeave(slot.id)} style={{ fontSize: "12px", color: T.textMid, background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Se désister</button>
             )}
-            {/* Bouton Annuler le Tee Time — créateur uniquement */}
+            {/* Boutons créateur — Modifier + Annuler */}
+            {isOwner && onEdit && (
+              <button onClick={() => onEdit(slot)} style={{ display:"flex", alignItems:"center", gap:"5px", fontSize: "12px", color: T.accent, background: T.accentLight, border: `1px solid ${T.accent}33`, borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Modifier
+              </button>
+            )}
             {isOwner && (
               <button onClick={() => onDelete(slot.id)} style={{ fontSize: "12px", color: T.danger, background: T.dangerLight, border: "none", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>Annuler le Tee Time</button>
             )}
@@ -2957,9 +2963,111 @@ function computeBadges(uid, slots, reviews, profiles, memberships) {
   return BADGES.filter(b => b.condition(stats));
 }
 
+
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
+function OnboardingScreen({ currentUser, onDone }) {
+  const [step, setStep] = useState(0);
+  const steps = [
+    {
+      icon: (
+        <svg width="56" height="56" viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="18" stroke={T.accent} strokeWidth="2"/>
+          <circle cx="20" cy="20" r="11" stroke={T.accent} strokeWidth="1.5"/>
+          <circle cx="20" cy="20" r="4" fill={T.accent}/>
+        </svg>
+      ),
+      title: "Bienvenue sur Fairway",
+      subtitle: "Your Team Golf Area",
+      desc: "Fairway est l'espace de votre équipe golf. Organisez vos sorties, suivez vos scores et restez connectés avec vos partenaires de jeu.",
+      cta: "Commencer",
+    },
+    {
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5" strokeLinecap="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+          <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+        </svg>
+      ),
+      title: "Planifiez vos Tee Times",
+      subtitle: "Organisez & rejoignez",
+      desc: "Créez un Tee Time pour inviter votre équipe à jouer. Choisissez le parcours, l'heure et le nombre de joueurs. Vos partenaires reçoivent une notification instantanée.",
+      cta: "Suivant",
+    },
+    {
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5" strokeLinecap="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      ),
+      title: "Rejoignez une équipe",
+      subtitle: "Ensemble sur le green",
+      desc: "Votre équipe est le cœur de Fairway. Rejoignez une équipe existante ou créez la vôtre pour partager vos parties, vos feedbacks et votre classement.",
+      cta: "Suivant",
+    },
+    {
+      icon: (
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5" strokeLinecap="round">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      ),
+      title: "Partagez vos feedbacks",
+      subtitle: "Notez vos parcours",
+      desc: "Après chaque sortie, laissez un feedback sur le parcours. Vos avis aident l'équipe à choisir les meilleures destinations.",
+      cta: "C'est parti !",
+    },
+  ];
+  const s = steps[step];
+  const isLast = step === steps.length - 1;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:T.bg, zIndex:500, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"space-between", padding:"60px 32px 48px", fontFamily:"'DM Sans',sans-serif" }}>
+      {/* Logo */}
+      <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+        <svg width="28" height="28" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="18" stroke={T.accent} strokeWidth="2"/><circle cx="20" cy="20" r="10" stroke={T.accent} strokeWidth="1.5"/><circle cx="20" cy="20" r="3" fill={T.accent}/></svg>
+        <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text, letterSpacing:"0.08em" }}>FAIRWAY</span>
+      </div>
+
+      {/* Contenu */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:"340px", gap:"20px" }}>
+        {/* Icône dans cercle vert */}
+        <div style={{ width:"100px", height:"100px", borderRadius:"28px", background:T.accentLight, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 8px 32px ${T.accent}22` }}>
+          {s.icon}
+        </div>
+        <div>
+          <div style={{ fontSize:"12px", fontWeight:600, color:T.accent, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:"8px" }}>{s.subtitle}</div>
+          <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:"26px", fontWeight:500, color:T.text, marginBottom:"14px", lineHeight:1.2 }}>{s.title}</h2>
+          <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.65 }}>{s.desc}</p>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div style={{ width:"100%", maxWidth:"340px", display:"flex", flexDirection:"column", gap:"16px", alignItems:"center" }}>
+        {/* Dots */}
+        <div style={{ display:"flex", gap:"7px" }}>
+          {steps.map((_,i) => (
+            <div key={i} onClick={()=>setStep(i)} style={{ width:i===step?"22px":"7px", height:"7px", borderRadius:"4px", background:i===step?T.accent:T.border, transition:"all .25s", cursor:"pointer" }}/>
+          ))}
+        </div>
+        {/* Bouton CTA */}
+        <button onClick={()=>{ if (isLast) onDone(); else setStep(s=>s+1); }} style={{ width:"100%", padding:"16px", borderRadius:"16px", background:T.accent, color:"#fff", border:"none", fontSize:"15px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", letterSpacing:"0.02em", boxShadow:`0 6px 20px ${T.accent}44` }}>
+          {s.cta}
+        </button>
+        {/* Skip */}
+        {!isLast && (
+          <button onClick={onDone} style={{ background:"none", border:"none", color:T.textLight, fontSize:"13px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+            Passer l'introduction
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null); // {uid, username}
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [profiles,    setProfiles]    = useState({});
   const [teams,       setTeams]       = useState({});       // { teamId: {id,name,memberIds,...} }
   const [memberships, setMemberships] = useState([]);       // [{userId,teamId,addedByUserId,joinedAt}]
@@ -2996,6 +3104,7 @@ export default function App() {
   const [slotMax,      setSlotMax]      = useState(4);
   const [slotNote,     setSlotNote]     = useState("");
   const [slotIsPoll,   setSlotIsPoll]   = useState(false); // mode sondage dispo
+  const [editingSlot,  setEditingSlot]  = useState(null);  // slot en cours d'édition
 
   // review form
   const [showRev,   setShowRev]   = useState(false);
@@ -3125,6 +3234,7 @@ export default function App() {
     const u = { uid: pr.uid, username: pr.username };
     setCurrentUser(u);
     try { localStorage.setItem("fw-session-v2", JSON.stringify(u)); } catch {}
+    try { if (!localStorage.getItem(`fw_onboarded_${pr.uid}`)) setShowOnboarding(true); } catch {}
     setAuthUser(""); setAuthPw("");
   }
 
@@ -3150,6 +3260,7 @@ export default function App() {
     const u = { uid, username: uname };
     setCurrentUser(u);
     try { localStorage.setItem("fw-session-v2", JSON.stringify(u)); } catch {}
+    setShowOnboarding(true);
     setAuthUser(""); setAuthPw("");
     notify("Bienvenue ! Complétez votre profil."); setTab("profile");
   }
@@ -3226,6 +3337,41 @@ export default function App() {
   }
   async function handleDelSlot(id) {
     await fbDel(`slots/${id}`);
+  }
+
+  function openEditSlot(slot) {
+    setEditingSlot(slot);
+    setSlotActivity(slot.activityType || "parcours");
+    setSlotDate(slot.date || "");
+    setSlotTime(slot.time || "");
+    setSlotCourse(slot.course || "");
+    setSlotLocation(slot.location || "");
+    setSlotMax(slot.maxPlayers || 4);
+    setSlotNote(slot.note || "");
+    setSlotIsPoll(slot.isPoll || false);
+    setShowSlot(true);
+  }
+
+  async function handleEditSlot() {
+    if (!editingSlot) return;
+    const act = ACTIVITY_TYPES.find(a => a.id === slotActivity) || ACTIVITY_TYPES[0];
+    if (!slotDate || !slotTime) return;
+    if (act.hasCourse && !slotCourse.trim()) return;
+    await updateDoc(doc(db, `slots/${editingSlot.id}`), {
+      activityType: slotActivity,
+      date: slotDate,
+      time: slotTime,
+      course: act.hasCourse ? slotCourse : "",
+      location: !act.hasCourse ? slotLocation : "",
+      maxPlayers: act.hasMaxPlayers !== false ? slotMax : 1,
+      note: slotNote,
+    });
+    setShowSlot(false);
+    setEditingSlot(null);
+    setSlotNote(""); setSlotDate(""); setSlotTime(""); setSlotCourse(""); setSlotLocation(""); setSlotIsPoll(false);
+    // Mettre à jour le detail slot si ouvert
+    setDetailSlot(prev => prev?.id === editingSlot.id ? { ...prev, activityType: slotActivity, date: slotDate, time: slotTime, course: slotCourse, location: slotLocation, maxPlayers: slotMax, note: slotNote } : prev);
+    notify("Tee Time modifié ✓");
   }
 
   // ── REVIEWS ──
@@ -3396,6 +3542,15 @@ export default function App() {
     <>
       <G />
       <div style={{ minHeight: "100vh", background: T.bg, paddingBottom: "80px" }}>
+        {showOnboarding && (
+          <OnboardingScreen
+            currentUser={currentUser}
+            onDone={() => {
+              localStorage.setItem(`fw_onboarded_${currentUser.uid}`, "1");
+              setShowOnboarding(false);
+            }}
+          />
+        )}
         {toast && <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", background: T.text, color: "#fff", padding: "11px 20px", borderRadius: "30px", fontSize: "13px", fontWeight: 500, zIndex: 400, whiteSpace: "nowrap", boxShadow: T.shadowMd, animation: "toastIn .25s cubic-bezier(0.34,1.56,0.64,1)", fontFamily: "'DM Sans',sans-serif" }}>{toast}</div>}
         {lightbox && <Lightbox photos={lightbox.photos} index={lightbox.index} onClose={() => setLightbox(null)} onNav={d => setLightbox(lb => ({ ...lb, index: (lb.index + d + lb.photos.length) % lb.photos.length }))} />}
         {viewedProfile && <MemberProfileModal profile={viewedProfile} onClose={() => setViewedProfile(null)} />}
@@ -3414,6 +3569,7 @@ export default function App() {
                   onLeave={(id) => { handleLeave(id); setDetailSlot(s => ({ ...s, participants: (s.participants||[]).filter(u => u !== currentUser.uid) })); }}
                   onDelete={(id) => { handleDelSlot(id); setDetailSlot(null); }}
                   onOpenProfile={(p) => { setDetailSlot(null); openProfile(p); }}
+                  onEdit={(slot) => { setDetailSlot(null); openEditSlot(slot); }}
                 />
               </div>
             </div>
@@ -3775,7 +3931,7 @@ export default function App() {
         </main>
 
         {/* ── MODAL CRÉNEAU ── */}
-        <Modal open={showSlot} onClose={() => setShowSlot(false)} title="Proposer un Tee Time">
+        <Modal open={showSlot} onClose={() => { setShowSlot(false); setEditingSlot(null); setSlotNote(""); setSlotDate(""); setSlotTime(""); setSlotCourse(""); setSlotLocation(""); }} title={editingSlot ? "Modifier le Tee Time" : "Proposer un Tee Time"}>
           <Fld label="Type d'activité">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {ACTIVITY_TYPES.map(act => (
@@ -3811,21 +3967,21 @@ export default function App() {
             </Fld>
           )}
           <Fld label="Note (optionnel)"><Txta value={slotNote} onChange={e => setSlotNote(e.target.value)} placeholder="Rendez-vous au parking à 8h30…" rows={2} /></Fld>
-          {/* Toggle sondage de disponibilité */}
-          <button onClick={() => setSlotIsPoll(v => !v)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", borderRadius:T.radiusSm, border:`1.5px solid ${slotIsPoll ? T.accent : T.border}`, background: slotIsPoll ? T.accentLight : T.surface, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", marginTop:"4px" }}>
+          {/* Toggle sondage — uniquement en création */}
+          {!editingSlot && <button onClick={() => setSlotIsPoll(v => !v)} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", borderRadius:T.radiusSm, border:`1.5px solid ${slotIsPoll ? T.accent : T.border}`, background: slotIsPoll ? T.accentLight : T.surface, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", marginTop:"4px" }}>
             <span style={{ fontSize:"13px", color: slotIsPoll ? T.accent : T.textMid, fontWeight: slotIsPoll ? 600 : 400 }}>
               Sondage de disponibilité
             </span>
             <span style={{ fontSize:"11px", color: slotIsPoll ? T.accent : T.textLight }}>
               {slotIsPoll ? "Activé — les membres votent" : "Désactivé"}
             </span>
-          </button>
-          {slotIsPoll && (
+          </button>}
+          {slotIsPoll && !editingSlot && (
             <div style={{ padding:"10px 14px", background:`${T.accent}0d`, borderRadius:T.radiusSm, border:`1px solid ${T.accent}22`, fontSize:"12px", color:T.textMid, lineHeight:1.5 }}>
-              Les membres recevront une notification et pourront voter ✅ Dispo / ❌ Pas dispo avant que le Tee Time soit confirmé.
+              Les membres recevront une notification et pourront voter Dispo / Pas dispo avant que le Tee Time soit confirmé.
             </div>
           )}
-          <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px", marginTop: "4px" }} onClick={handleAddSlot}>{slotIsPoll ? "Lancer le sondage" : "Proposer le Tee Time"}</Btn>
+          <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px", marginTop: "4px" }} onClick={editingSlot ? handleEditSlot : handleAddSlot}>{editingSlot ? "Enregistrer les modifications" : slotIsPoll ? "Lancer le sondage" : "Proposer le Tee Time"}</Btn>
         </Modal>
 
         {/* ── MODAL AVIS ── */}
