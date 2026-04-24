@@ -135,10 +135,10 @@ const GOLF_BG_REVIEWS = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBD
 // ─── TRADUCTIONS FR / EN ──────────────────────────────────────────────────────
 const TRANSLATIONS = {
   fr: {
-    slots: "Tee Times", feedbacks: "Feedbacks", profile: "Profil",
+    slots: "Tee Times", feedbacks: "Experiences", profile: "Profil",
     upcoming: "À venir", noSlots: "Aucun Tee Time à venir",
     join: "Rejoindre", leave: "Se désister", cancel: "Annuler", full: "Complet",
-    proposeSlot: "Proposer un Tee Time", newFeedback: "Nouveau feedback",
+    proposeSlot: "Proposer un Tee Time", newFeedback: "Nouvelle Experience",
     today: "Aujourd'hui", tomorrow: "Demain",
     by: "Par", players: "joueur", playersPlural: "joueurs",
     chatGroup: "Chat du groupe", closeChat: "Fermer le chat",
@@ -152,10 +152,10 @@ const TRANSLATIONS = {
     username: "Nom d'utilisateur", password: "Mot de passe",
   },
   en: {
-    slots: "Tee Times", feedbacks: "Feedbacks", profile: "Profile",
+    slots: "Tee Times", feedbacks: "Experiences", profile: "Profile",
     upcoming: "Upcoming", noSlots: "No upcoming Tee Times",
     join: "Join", leave: "Leave", cancel: "Cancel", full: "Full",
-    proposeSlot: "Add a Tee Time", newFeedback: "New feedback",
+    proposeSlot: "Add a Tee Time", newFeedback: "New Experience",
     today: "Today", tomorrow: "Tomorrow",
     by: "By", players: "player", playersPlural: "players",
     chatGroup: "Group chat", closeChat: "Close chat",
@@ -738,6 +738,37 @@ const PAR_LABELS = {
 function relLabel(diff){
   const k=String(Math.max(-3,Math.min(3,diff)));
   return PAR_LABELS[k]||{label:`+${diff}`,color:"#C0392B",bg:"#FDECEA"};
+}
+
+
+// ─── COLLAPSIBLE SECTION (même design que ScoreCalculator) ────────────────────
+function CollapsibleSection({ title, children, defaultOpen = false, icon = null }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom:"20px" }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{ width:"100%", background:T.surface, border:`1.5px solid ${open?T.accent:T.border}`, borderRadius:open?"12px 12px 0 0":T.radius, padding:"18px 22px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:open?"none":T.shadow, transition:"all .2s" }}
+        onMouseEnter={e=>{if(!open){e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.boxShadow=`0 0 0 3px ${T.accentLight}`;}}}
+        onMouseLeave={e=>{if(!open){e.currentTarget.style.borderColor=T.border;e.currentTarget.style.boxShadow=T.shadow;}}}
+      >
+        <div style={{ display:"flex", alignItems:"center", gap:"14px" }}>
+          {icon && (
+            <div style={{ width:"40px", height:"40px", background:T.accentLight, borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              {icon}
+            </div>
+          )}
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text, textAlign:"left" }}>{title}</div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2" style={{ transition:"transform .2s", transform:open?"rotate(90deg)":"rotate(0deg)", flexShrink:0 }}><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      {open && (
+        <div style={{ border:`1.5px solid ${T.accent}`, borderTop:"none", borderRadius:"0 0 12px 12px", padding:"20px", background:T.surface, animation:"slideDown .2s ease" }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ScoreCalculator({ playerIndex, notify }) {
@@ -1462,26 +1493,35 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
           Mes équipes
         </button>
 
-        <div style={{ background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, padding: "20px 24px", marginBottom: "16px", boxShadow: T.shadow }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "20px", fontWeight: 500, color: T.text }}>{team.name}</div>
-              <div style={{ fontSize: "12px", color: T.textLight, marginTop: "3px" }}>{team.memberIds?.length || 0} membre{(team.memberIds?.length || 0) > 1 ? "s" : ""}</div>
+        {/* Header détail équipe — même ligne que la liste */}
+      <div style={{ borderRadius:"20px", overflow:"hidden", boxShadow:`0 2px 12px rgba(28,74,48,0.08)`, marginBottom:"20px" }}>
+        <div style={{ height:"3px", background:`linear-gradient(90deg, ${T.accent}, #5C9E70)` }}/>
+        <div style={{ background:T.surface, padding:"22px 22px 20px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"14px" }}>
+            <div style={{ width:"54px", height:"54px", borderRadius:"15px", background:`linear-gradient(135deg, ${T.accent}18 0%, ${T.accent}08 100%)`, border:`1px solid ${T.accent}20`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"24px", fontWeight:500, color:T.accent }}>{(team.name||"?")[0].toUpperCase()}</span>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"20px", fontWeight:500, color:T.text, letterSpacing:"-0.01em", marginBottom:"3px" }}>{team.name}</div>
+              <div style={{ fontSize:"12px", color:T.textLight }}>{team.memberIds?.length||0} membre{(team.memberIds?.length||0)>1?"s":""}</div>
             </div>
             {isMember && (
-              <div style={{ display: "flex", gap: "6px" }}>
-                <button onClick={() => handleLeave(selectedTeam)} style={{ fontSize: "12px", color: T.textMid, background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: T.radiusSm, padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Quitter l'équipe</button>
-                {team.memberIds?.[0] === currentUser.uid && (
-                  <button onClick={async () => { if(window.confirm("Supprimer définitivement cette équipe ?")) { await deleteTeam(selectedTeam, currentUser.uid); setSelectedTeam(null); notify("Équipe supprimée"); }}} style={{ fontSize: "12px", color: T.danger, background: T.dangerLight, border: "none", borderRadius: T.radiusSm, padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Supprimer</button>
+              <div style={{ display:"flex", gap:"6px", flexShrink:0 }}>
+                <button onClick={()=>handleLeave(selectedTeam)} style={{ fontSize:"12px", color:T.textMid, background:T.surfaceAlt, border:`1px solid ${T.border}`, borderRadius:"8px", padding:"7px 12px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Quitter</button>
+                {team.memberIds?.[0]===currentUser.uid && (
+                  <button onClick={async()=>{ if(window.confirm("Supprimer définitivement cette équipe ?")){ await deleteTeam(selectedTeam,currentUser.uid); setSelectedTeam(null); notify("Équipe supprimée"); }}} style={{ fontSize:"12px", color:T.danger, background:T.dangerLight, border:"none", borderRadius:"8px", padding:"7px 12px", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>Supprimer</button>
                 )}
               </div>
             )}
           </div>
+        </div>
+      </div>
+      <div style={{ background:T.surface, borderRadius:"16px", border:`1.5px solid ${T.border}`, padding:"20px 22px", marginBottom:"16px", boxShadow:T.shadow }}>
 
-          {/* Ajouter un membre */}
-          {isMember && (
-            <div style={{ marginBottom: "16px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 600, color: T.textMid, marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Ajouter un membre</div>
+        {/* Ajouter un membre */}
+        {isMember && (
+          <div>
+            <div style={{ fontSize:"11px", fontWeight:600, color:T.textLight, marginBottom:"8px", textTransform:"uppercase", letterSpacing:"0.07em" }}>Ajouter un membre</div>
               <div style={{ position: "relative" }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher par prénom ou identifiant…"
                   style={{ width: "100%", padding: "10px 14px", borderRadius: T.radiusSm, border: `1.5px solid ${T.border}`, background: T.surface, color: T.text, fontSize: "13px", outline: "none", fontFamily: "'DM Sans',sans-serif", boxSizing: "border-box" }}
@@ -1511,33 +1551,38 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Liste des membres */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      {/* Liste des membres */}
+      <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
           {(team.memberIds || []).map(uid => {
             const p = profiles[uid];
             const ms = getMembership(selectedTeam, uid);
             const addedBy = ms?.addedByUserId ? profiles[ms.addedByUserId] : null;
             const isMe = uid === currentUser.uid;
             return (
-              <div key={uid} onClick={() => !isMe && p?.profilePublic !== false && setViewedProfile(p)} style={{ background: T.surface, borderRadius: T.radius, border: `1.5px solid ${isMe ? T.accent + "55" : T.border}`, padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px", boxShadow: T.shadow, cursor: !isMe && p?.profilePublic !== false ? "pointer" : "default" }}>
-                <Ava profile={p} size={38}/>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontFamily: "'Playfair Display',serif", fontSize: "14px", fontWeight: 500, color: T.text }}>{p?.firstName || uid} {p?.lastName || ""}</span>
-                    {isMe && <span style={{ fontSize: "10px", background: T.accentLight, color: T.accent, padding: "2px 7px", borderRadius: "4px", fontWeight: 600 }}>Vous</span>}
-                  </div>
-                  <div style={{ fontSize: "11px", color: T.textLight, marginTop: "2px" }}>
-                    {isMe && ms?.addedByUserId === uid ? "Créateur de l'équipe" :
-                     addedBy ? `Ajouté par ${addedBy.firstName || addedBy.username}` : "Membre"}
-                    {ms?.joinedAt && <span style={{ marginLeft: "6px", opacity: 0.7 }}>· {new Date(ms.joinedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span>}
-                  </div>
-                </div>
-                {p?.index && <span style={{ fontSize: "11px", color: T.accent, fontWeight: 600, background: T.accentLight, padding: "3px 8px", borderRadius: "6px" }}>Idx {p.index}</span>}
+              <div key={uid} onClick={() => !isMe && p?.profilePublic !== false && setViewedProfile(p)}
+            style={{ background:T.surface, borderRadius:"14px", border:`1.5px solid ${isMe?T.accent+"44":T.border}`, padding:"14px 18px", display:"flex", alignItems:"center", gap:"12px", boxShadow:T.shadow, cursor:!isMe&&p?.profilePublic!==false?"pointer":"default", transition:"border-color .12s" }}>
+            <Ava profile={p} size={40}/>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"7px", marginBottom:"3px" }}>
+                <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:500, color:T.text }}>{p?.firstName||uid} {p?.lastName||""}</span>
+                {isMe && <span style={{ fontSize:"10px", background:T.accentLight, color:T.accent, padding:"2px 7px", borderRadius:"4px", fontWeight:700, letterSpacing:"0.03em" }}>Vous</span>}
               </div>
+              <div style={{ fontSize:"11px", color:T.textLight }}>
+                {isMe && ms?.addedByUserId === uid ? "Créateur de l'équipe" : addedBy ? `Ajouté par ${addedBy.firstName||addedBy.username}` : "Membre"}
+                {ms?.joinedAt && <span style={{ marginLeft:"6px", opacity:.65 }}>· {new Date(ms.joinedAt).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span>}
+              </div>
+            </div>
+            {p?.index && (
+              <span style={{ fontSize:"11px", color:T.accent, fontWeight:700, background:T.accentLight, padding:"4px 9px", borderRadius:"8px", letterSpacing:"0.02em", flexShrink:0 }}>Idx {p.index}</span>
+            )}
+            {!isMe && p?.profilePublic !== false && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.borderStrong} strokeWidth="2" style={{ flexShrink:0 }}><path d="M9 18l6-6-6-6"/></svg>
+            )}
+          </div>
             );
           })}
         </div>
@@ -1570,37 +1615,56 @@ function TeamsSection({ currentUser, profiles, teams, memberships, notify }) {
         </div>
       )}
 
-      {/* Liste des teams de l'utilisateur */}
+      {/* Liste des équipes — design premium */}
       {myTeams.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px" }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 14px" }}>
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucune équipe</p>
-          <p style={{ fontSize: "13px", color: T.textLight }}>Créez votre première équipe ou demandez à un membre de vous ajouter</p>
+        <div style={{ textAlign:"center", padding:"52px 20px" }}>
+          <div style={{ width:"64px", height:"64px", borderRadius:"18px", background:T.accentLight, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px" }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", color:T.text, marginBottom:"8px" }}>Aucune équipe</p>
+          <p style={{ fontSize:"13px", color:T.textLight, lineHeight:1.65 }}>Créez votre première équipe ou demandez à un membre de vous ajouter</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
           {myTeams.map(team => {
             const memberCount = team.memberIds?.length || 0;
             const previewMembers = (team.memberIds || []).slice(0, 5);
             return (
-              <div key={team.id} className="chover" onClick={() => setSelectedTeam(team.id)}
-                style={{ background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, padding: "18px 20px", cursor: "pointer", boxShadow: T.shadow }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "16px", fontWeight: 500, color: T.text, marginBottom: "6px" }}>{team.name}</div>
-                    <div style={{ fontSize: "12px", color: T.textLight }}>{memberCount} membre{memberCount > 1 ? "s" : ""}</div>
+              <div key={team.id} onClick={() => setSelectedTeam(team.id)} style={{ cursor:"pointer", borderRadius:"20px", overflow:"hidden", boxShadow:`0 2px 12px rgba(28,74,48,0.08), 0 1px 3px rgba(28,74,48,0.06)`, transition:"transform .14s, box-shadow .14s" }}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 8px 24px rgba(28,74,48,0.14), 0 2px 6px rgba(28,74,48,0.08)`;}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow=`0 2px 12px rgba(28,74,48,0.08), 0 1px 3px rgba(28,74,48,0.06)`;}}
+              >
+                {/* Ligne verte fine en haut */}
+                <div style={{ height:"3px", background:`linear-gradient(90deg, ${T.accent}, #5C9E70)` }}/>
+                {/* Corps */}
+                <div style={{ background:T.surface, padding:"20px 22px 18px", display:"flex", alignItems:"center", gap:"16px" }}>
+                  {/* Monogramme */}
+                  <div style={{ width:"50px", height:"50px", borderRadius:"14px", background:`linear-gradient(135deg, ${T.accent}18 0%, ${T.accent}08 100%)`, border:`1px solid ${T.accent}20`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"22px", fontWeight:500, color:T.accent, lineHeight:1 }}>{(team.name||"?")[0].toUpperCase()}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <div style={{ display: "flex" }}>
-                      {previewMembers.map((uid, i) => (
-                        <div key={uid} style={{ marginLeft: i > 0 ? "-8px" : 0, position: "relative", zIndex: previewMembers.length - i, border: `2px solid ${T.surface}`, borderRadius: "50%" }}>
-                          <Ava profile={profiles[uid]} size={28}/>
-                        </div>
-                      ))}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    {/* Nom */}
+                    <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"17px", fontWeight:500, color:T.text, marginBottom:"10px", letterSpacing:"-0.01em" }}>{team.name}</div>
+                    {/* Avatars empilés */}
+                    <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                      <div style={{ display:"flex" }}>
+                        {previewMembers.map((uid,i)=>(
+                          <div key={uid} style={{ marginLeft:i>0?"-9px":0, border:`2.5px solid ${T.surface}`, borderRadius:"50%", zIndex:previewMembers.length-i, position:"relative" }}>
+                            <Ava profile={profiles[uid]} size={28}/>
+                          </div>
+                        ))}
+                        {memberCount>5 && (
+                          <div style={{ marginLeft:"-9px", width:"28px", height:"28px", borderRadius:"50%", background:T.surfaceAlt, border:`2.5px solid ${T.surface}`, display:"flex", alignItems:"center", justifyContent:"center", zIndex:0 }}>
+                            <span style={{ fontSize:"10px", fontWeight:700, color:T.textMid }}>+{memberCount-5}</span>
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize:"12px", color:T.textLight, fontWeight:400 }}>{memberCount} membre{memberCount>1?"s":""}</span>
                     </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2" style={{ marginLeft: "12px" }}><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                  {/* Flèche */}
+                  <div style={{ width:"32px", height:"32px", borderRadius:"50%", background:T.surfaceAlt, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
                   </div>
                 </div>
               </div>
@@ -1909,7 +1973,7 @@ function FavorisSection({ profiles, currentUser, favorites, setFavorites, favGol
 }
 
 // ─── PROFILE TAB ─────────────────────────────────────────────────────────────
-function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews, onSave, onLogout, onDeleteAccount, notify, onOpenProfile, onOpenSlot, onAddSlot }) {
+function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews, onSave, onLogout, onDeleteAccount, notify, onOpenProfile, onOpenSlot, onAddSlot, onSwitchTeam, activeTeamId, myTeamIds = [] }) {
   const p = profiles[currentUser.uid] || {};
   const [photo,          setPhoto]          = useState(p.photo || "");
   const [firstName,      setFirstName]      = useState(p.firstName || "");
@@ -1964,7 +2028,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
   const otherProfiles = Object.values(profiles).filter(pr => pr.uid !== currentUser.uid);
   const favProfiles   = otherProfiles.filter(pr => favorites.includes(pr.uid));
 
-  const sections = [["profil","Mon profil"],["equipe","Mes équipes"],["stats","Stats & Badges"],["agenda","Agenda & Favoris"],["historique","Historique"]];
+  const sections = [["profil","Mon profil"],["equipe","Mes équipes"],["agenda","Agenda & Favoris"],["historique","Historique"]];
 
   return (
     <div style={{ animation: "slideUp .2s ease" }}>
@@ -2087,6 +2151,21 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
           {/* ── Calculatrice de score (entre profil et connexion) ── */}
           <ScoreCalculator playerIndex={index} notify={notify} />
 
+          {/* ── Suivi de mon index (repliable) ── */}
+          <CollapsibleSection title="Suivi de mon index" defaultOpen={false}>
+            <IndexTrackerSection currentUser={currentUser} profiles={profiles} notify={notify} />
+          </CollapsibleSection>
+
+          {/* ── Mes badges (repliable) ── */}
+          <CollapsibleSection title="Mes badges" defaultOpen={false}>
+            <BadgesSection currentUser={currentUser} slots={slots} reviews={reviews} profiles={profiles} memberships={memberships} />
+          </CollapsibleSection>
+
+          {/* ── Mes statistiques (repliable) ── */}
+          <CollapsibleSection title="Mes statistiques" defaultOpen={false}>
+            <KpiSection currentUser={currentUser} slots={slots} reviews={reviews} />
+          </CollapsibleSection>
+
           {/* Connexion */}
           <div style={{ background: T.surface, borderRadius: T.radius, border: `1.5px solid ${T.border}`, padding: "24px", boxShadow: T.shadow, marginBottom: "20px" }}>
             <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "16px", fontWeight: 500, color: T.text, marginBottom: "16px" }}>Connexion & préférences</h3>
@@ -2134,7 +2213,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
       {/* ── AGENDA & FAVORIS ── */}
       {activeSection === "agenda" && (
         <div style={{ display:"flex", flexDirection:"column", gap:"32px" }}>
-          {/* Agenda en priorité */}
+          {/* 1. Agenda en priorité */}
           <AgendaView
             profiles={profiles}
             currentUser={currentUser}
@@ -2142,7 +2221,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
             onOpenSlot={onOpenSlot}
             onAddSlot={onAddSlot}
           />
-          {/* Séparateur */}
+          {/* Séparateur Favoris */}
           <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
             <div style={{ flex:1, height:"1px", background:T.border }}/>
             <span style={{ fontSize:"11px", fontWeight:600, color:T.textLight, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:"'DM Sans',sans-serif" }}>Mes Favoris</span>
@@ -2169,10 +2248,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
         <HistoriqueView slots={slots} profiles={profiles} currentUser={currentUser} />
       )}
 
-      {/* ── STATS & BADGES ── */}
-      {activeSection === "stats" && (
-        <StatsView slots={slots} reviews={reviews} profiles={profiles} memberships={memberships} currentUser={currentUser} notify={notify} />
-      )}
+
     </div>
   );
 }
@@ -2414,44 +2490,362 @@ function CalendarView({ slots, profiles, currentUser, onOpenSlot, onAddSlot }) {
   );
 }
 
+
+// ─── DASHBOARD PERSONNEL — vue globale multi-équipes ────────────────────────
+function DashboardView({ slots, profiles, currentUser, teams, memberships, onOpenSlot }) {
+  const today = new Date().toISOString().split("T")[0];
+  const myTeamIds = memberships
+    .filter(m => m.userId === currentUser?.uid && !!teams[m.teamId])
+    .map(m => m.teamId);
+
+  // MES prochains Tee Times sur toutes mes équipes
+  const myUpcoming = slots
+    .filter(s => s.participants?.includes(currentUser.uid) && s.date >= today)
+    .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time))
+    .slice(0, 10);
+
+  // Grouper par équipe
+  const byTeam = {};
+  myUpcoming.forEach(s => {
+    const tid = s.teamId || "other";
+    if (!byTeam[tid]) byTeam[tid] = [];
+    byTeam[tid].push(s);
+  });
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"24px" }}>
+      {/* Header */}
+      <div>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text, marginBottom:"4px" }}>Mon Dashboard</h3>
+        <p style={{ fontSize:"12px", color:T.textLight }}>Vos prochains Tee Times sur toutes vos équipes</p>
+      </div>
+
+      {myTeamIds.length === 0 && (
+        <div style={{ textAlign:"center", padding:"40px 20px", color:T.textLight }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 12px" }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <p style={{ fontSize:"14px", color:T.textMid }}>Rejoignez une équipe pour voir vos activités</p>
+        </div>
+      )}
+
+      {myUpcoming.length === 0 && myTeamIds.length > 0 && (
+        <div style={{ textAlign:"center", padding:"40px 20px" }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 12px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <p style={{ fontSize:"14px", color:T.textMid }}>Aucun Tee Time prévu</p>
+        </div>
+      )}
+
+      {Object.entries(byTeam).map(([tid, tSlots]) => {
+        const team = teams[tid];
+        return (
+          <div key={tid}>
+            {/* Badge équipe */}
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"12px" }}>
+              <div style={{ width:"24px", height:"24px", borderRadius:"50%", background:T.accent, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <span style={{ fontSize:"10px", fontWeight:700, color:"#fff" }}>{(team?.name||"?")[0].toUpperCase()}</span>
+              </div>
+              <span style={{ fontSize:"12px", fontWeight:700, color:T.accent, textTransform:"uppercase", letterSpacing:"0.06em" }}>{team?.name || "Autres"}</span>
+              <div style={{ flex:1, height:"1px", background:T.border }}/>
+            </div>
+            {/* Slots */}
+            <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+              {tSlots.map(s => {
+                const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+                const d = new Date(s.date+"T12:00:00");
+                const diff = Math.round((d - new Date(today+"T12:00:00"))/86400000);
+                const label = diff===0?"Aujourd'hui":diff===1?"Demain":d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
+                return (
+                  <div key={s.id} onClick={()=>onOpenSlot&&onOpenSlot(s)} style={{ background:T.surface, border:`1.5px solid ${T.border}`, borderRadius:"12px", padding:"12px 14px", display:"flex", alignItems:"center", gap:"12px", cursor:"pointer", boxShadow:T.shadow }}>
+                    <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      {act.icon(act.color)}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:"13px", fontWeight:600, color:T.text, marginBottom:"2px" }}>
+                        {s.activityType==="parcours"&&s.course?s.course.split(" – ")[0]:act.label}
+                      </div>
+                      <div style={{ fontSize:"11px", color:T.textLight }}>{label} · {s.time}</div>
+                    </div>
+                    <span style={{ fontSize:"11px", fontWeight:600, color:act.color, background:act.colorLight, padding:"3px 8px", borderRadius:"12px", whiteSpace:"nowrap" }}>
+                      {s.participants?.length||0}/{s.maxPlayers||4}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── HISTORIQUE VIEW ─────────────────────────────────────────────────────────
 function HistoriqueView({ slots, profiles, currentUser }) {
   const today  = new Date().toISOString().split("T")[0];
-  const past   = slots
+  const [activeTab, setActiveTab] = useState("all");
+  const [scoreModal, setScoreModal] = useState(null); // slot pour saisir score
+  const [scores, setScores] = useState({}); // { slotId: { total, holes, details } }
+
+  const past = slots
     .filter(s => s.date < today && s.participants?.includes(currentUser.uid))
     .sort((a,b) => b.date.localeCompare(a.date));
 
+  // Grouper par type d'activité
+  const byType = {};
+  past.forEach(s => {
+    const type = s.activityType || "parcours";
+    if (!byType[type]) byType[type] = [];
+    byType[type].push(s);
+  });
+
+  const allTypes = ["all", ...Object.keys(byType)];
+
+  const filtered = activeTab === "all" ? past : (byType[activeTab] || []);
+
+  // Charger les scores depuis le profil
+  useEffect(() => {
+    const pr = profiles[currentUser.uid] || {};
+    if (pr.scores) setScores(pr.scores);
+  }, [profiles, currentUser.uid]);
+
+  async function saveScore(slotId, scoreData) {
+    const updated = { ...scores, [slotId]: scoreData };
+    setScores(updated);
+    await updateDoc(doc(db, `users/${currentUser.uid}`), { scores: updated });
+    setScoreModal(null);
+  }
+
   return (
     <div>
+      {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:"16px" }}>
-        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text }}>Mes parties passées</h3>
+        <h3 style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:500, color:T.text }}>Historique</h3>
         <span style={{ fontSize:"12px", color:T.textLight }}>{past.length} partie{past.length!==1?"s":""}</span>
       </div>
-      {past.length === 0 && (
-        <div style={{ textAlign:"center", padding:"48px 20px", color:T.textLight }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><path d="M3 17l4-12 4 5 4-8 4 15"/><path d="M3 20h18"/></svg>
-          <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid }}>Aucune partie jouée pour l'instant</p>
+
+      {/* Filtres par type */}
+      {allTypes.length > 2 && (
+        <div style={{ display:"flex", gap:"6px", overflowX:"auto", paddingBottom:"4px", marginBottom:"20px" }}>
+          {allTypes.map(type => {
+            const act = type === "all" ? null : (ACTIVITY_TYPES.find(a=>a.id===type)||ACTIVITY_TYPES[0]);
+            const isActive = type === activeTab;
+            return (
+              <button key={type} onClick={()=>setActiveTab(type)} style={{ display:"inline-flex", alignItems:"center", gap:"5px", padding:"7px 14px", borderRadius:"20px", border:`1.5px solid ${isActive?(act?.color||T.accent):T.border}`, background:isActive?(act?.colorLight||T.accentLight):T.surface, color:isActive?(act?.color||T.accent):T.textMid, fontSize:"12px", fontWeight:isActive?600:400, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
+                {type === "all" ? "Tous" : (act?.icon(isActive?act.color:T.textLight))}
+                {type === "all" ? "" : act?.label}
+              </button>
+            );
+          })}
         </div>
       )}
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign:"center", padding:"48px 20px" }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 14px" }}><path d="M3 17l4-12 4 5 4-8 4 15"/><path d="M3 20h18"/></svg>
+          <p style={{ fontFamily:"'Playfair Display',serif", fontSize:"15px", color:T.textMid }}>Aucune partie dans cette catégorie</p>
+        </div>
+      )}
+
+      {/* Liste par thématique */}
       <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
-        {past.map(s => {
+        {filtered.map(s => {
           const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
+          const score = scores[s.id];
+          const isParcours = s.activityType === "parcours" || s.activityType === "competition";
           return (
-            <div key={s.id} style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"14px 18px", boxShadow:T.shadow, display:"flex", alignItems:"center", gap:"14px" }}>
-              <div style={{ width:"40px", height:"40px", borderRadius:"10px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                {act.icon(act.color)}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:500, color:T.text, marginBottom:"2px" }}>
-                  {s.course || act.label}
+            <div key={s.id} style={{ background:T.surface, borderRadius:"14px", border:`1.5px solid ${T.border}`, overflow:"hidden", boxShadow:T.shadow }}>
+              {/* Ligne principale */}
+              <div style={{ padding:"14px 16px", display:"flex", alignItems:"center", gap:"12px" }}>
+                <div style={{ width:"40px", height:"40px", borderRadius:"11px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  {act.icon(act.color)}
                 </div>
-                <div style={{ fontSize:"12px", color:T.textLight }}>
-                  {formatDate(s.date)} · {s.time} · {s.participants?.length} joueur{s.participants?.length!==1?"s":""}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"14px", fontWeight:500, color:T.text, marginBottom:"2px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                    {s.course ? s.course.split(" – ")[0] : act.label}
+                  </div>
+                  <div style={{ fontSize:"11px", color:T.textLight }}>
+                    {formatDate(s.date)} · {s.time}
+                    {s.participants?.length > 1 && ` · ${s.participants.length} joueurs`}
+                  </div>
                 </div>
+                {/* Score si parcours */}
+                {isParcours && (
+                  <button onClick={()=>setScoreModal(s)} style={{ display:"flex", flexDirection:"column", alignItems:"center", padding:"6px 12px", borderRadius:"10px", background: score ? T.accentLight : T.surfaceAlt, border:`1px solid ${score?T.accent+"44":T.border}`, cursor:"pointer", flexShrink:0, minWidth:"52px" }}>
+                    {score
+                      ? <><span style={{ fontFamily:"'Playfair Display',serif", fontSize:"18px", fontWeight:600, color:T.accent, lineHeight:1 }}>{score.total}</span><span style={{ fontSize:"9px", color:T.accent, marginTop:"2px", fontWeight:600, letterSpacing:"0.04em" }}>SCORE</span></>
+                      : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textLight} strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg><span style={{ fontSize:"9px", color:T.textLight, marginTop:"2px" }}>Score</span></>
+                    }
+                  </button>
+                )}
+                <span style={{ fontSize:"10px", fontWeight:600, color:act.color, background:act.colorLight, padding:"3px 8px", borderRadius:"12px", whiteSpace:"nowrap", flexShrink:0 }}>
+                  {act.label}
+                </span>
               </div>
-              <span style={{ fontSize:"11px", fontWeight:600, color:act.color, background:act.colorLight, padding:"3px 9px", borderRadius:"20px", whiteSpace:"nowrap", flexShrink:0 }}>
-                {act.label}
-              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal saisie score */}
+      {scoreModal && (
+        <ScoreModal slot={scoreModal} existingScore={scores[scoreModal.id]} onSave={saveScore} onClose={()=>setScoreModal(null)} />
+      )}
+    </div>
+  );
+}
+
+// ─── MODAL SAISIE SCORE ───────────────────────────────────────────────────────
+function ScoreModal({ slot, existingScore, onSave, onClose }) {
+  const act = ACTIVITY_TYPES.find(a=>a.id===slot.activityType)||ACTIVITY_TYPES[0];
+  const [total, setTotal] = useState(existingScore?.total || "");
+  const [holes, setHoles] = useState(existingScore?.holes || 18);
+  const [notes, setNotes] = useState(existingScore?.notes || "");
+
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(26,23,20,0.55)", zIndex:400, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:T.surface, borderRadius:"24px 24px 0 0", width:"100%", maxWidth:"480px", padding:"24px 24px 40px", animation:"slideUp .25s cubic-bezier(.22,1,.36,1)" }}>
+        <div style={{ width:"36px", height:"4px", borderRadius:"2px", background:T.border, margin:"0 auto 20px" }}/>
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"22px" }}>
+          <div style={{ width:"44px", height:"44px", borderRadius:"12px", background:act.colorLight, display:"flex", alignItems:"center", justifyContent:"center" }}>
+            {act.icon(act.color)}
+          </div>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text }}>
+              {slot.course ? slot.course.split(" – ")[0] : act.label}
+            </div>
+            <div style={{ fontSize:"12px", color:T.textLight }}>{formatDate(slot.date)}</div>
+          </div>
+        </div>
+        {/* Score total */}
+        <div style={{ marginBottom:"16px" }}>
+          <label style={{ fontSize:"12px", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginBottom:"8px" }}>Score total</label>
+          <input type="number" value={total} onChange={e=>setTotal(e.target.value)} placeholder="Ex: 82"
+            style={{ width:"100%", padding:"12px 16px", borderRadius:"12px", border:`1.5px solid ${T.border}`, fontSize:"24px", fontFamily:"'Playfair Display',serif", fontWeight:500, textAlign:"center", outline:"none", color:T.text, background:T.surface, boxSizing:"border-box" }}
+          />
+        </div>
+        {/* Trous */}
+        <div style={{ marginBottom:"16px" }}>
+          <label style={{ fontSize:"12px", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginBottom:"8px" }}>Nombre de trous</label>
+          <div style={{ display:"flex", gap:"8px" }}>
+            {[9, 18].map(h => (
+              <button key={h} onClick={()=>setHoles(h)} style={{ flex:1, padding:"10px", borderRadius:"10px", border:`1.5px solid ${holes===h?T.accent:T.border}`, background:holes===h?T.accentLight:T.surface, color:holes===h?T.accent:T.textMid, fontSize:"14px", fontWeight:holes===h?700:400, cursor:"pointer" }}>
+                {h} trous
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Note */}
+        <div style={{ marginBottom:"22px" }}>
+          <label style={{ fontSize:"12px", fontWeight:600, color:T.textMid, textTransform:"uppercase", letterSpacing:"0.06em", display:"block", marginBottom:"8px" }}>Note (optionnel)</label>
+          <input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Conditions, ressenti…"
+            style={{ width:"100%", padding:"11px 14px", borderRadius:"12px", border:`1.5px solid ${T.border}`, fontSize:"13px", fontFamily:"'DM Sans',sans-serif", outline:"none", color:T.text, background:T.surface, boxSizing:"border-box" }}
+          />
+        </div>
+        {/* Boutons */}
+        <div style={{ display:"flex", gap:"8px" }}>
+          <button onClick={()=>onSave(slot.id, { total:parseInt(total)||0, holes, notes, date:slot.date, course:slot.course })} style={{ flex:1, padding:"13px", borderRadius:"12px", background:T.accent, color:"#fff", border:"none", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+            Enregistrer le score
+          </button>
+          <button onClick={onClose} style={{ padding:"13px 18px", borderRadius:"12px", background:T.surfaceAlt, color:T.textMid, border:"none", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+            Annuler
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── INDEX TRACKER SECTION ────────────────────────────────────────────────────
+function IndexTrackerSection({ currentUser, profiles, notify }) {
+  const pr = profiles[currentUser.uid] || {};
+  const [newIndex, setNewIndex] = useState("");
+  const [indexHistory, setIndexHistory] = useState(Array.isArray(pr.indexHistory) ? pr.indexHistory : []);
+  const today = new Date().toISOString().split("T")[0];
+
+  async function saveIndex() {
+    const val = parseFloat(newIndex.replace(",","."));
+    if (isNaN(val) || val<-10 || val>54) { notify("Index invalide (entre -10 et 54)"); return; }
+    const entry = { value:val, date:today };
+    const updated = [...indexHistory, entry];
+    setIndexHistory(updated);
+    await updateDoc(doc(db, `users/${currentUser.uid}`), { indexHistory: updated, index: String(val) });
+    setNewIndex("");
+    notify("Index enregistré ✓");
+  }
+
+  return (
+    <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"22px", boxShadow:T.shadow }}>
+      <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"18px" }}>
+        <div style={{ width:"38px", height:"38px", borderRadius:"11px", background:T.accentLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.accent} strokeWidth="1.8" strokeLinecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text }}>Suivi de mon index</div>
+          {indexHistory.length > 0 && <div style={{ fontSize:"12px", color:T.textLight }}>Actuel · <strong style={{ color:T.accent, fontWeight:700 }}>{indexHistory[indexHistory.length-1]?.value}</strong></div>}
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:"8px", marginBottom:"16px" }}>
+        <input type="number" step="0.1" placeholder="Nouvel index (ex: 12.4)" value={newIndex} onChange={e=>setNewIndex(e.target.value)}
+          style={{ flex:1, padding:"10px 14px", borderRadius:T.radiusSm, border:`1.5px solid ${T.border}`, fontSize:"14px", fontFamily:"'DM Sans',sans-serif", outline:"none", background:T.bg, color:T.text }} />
+        <button onClick={saveIndex} style={{ padding:"10px 20px", borderRadius:T.radiusSm, background:T.accent, color:"#fff", border:"none", fontSize:"13px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>Enregistrer</button>
+      </div>
+      {indexHistory.length === 0 && <p style={{ fontSize:"13px", color:T.textLight, fontStyle:"italic" }}>Aucun index enregistré pour l'instant.</p>}
+      {indexHistory.length > 0 && (
+        <>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:"3px", height:"72px", marginBottom:"4px" }}>
+            {indexHistory.slice(-12).map((e,i)=>{
+              const all=indexHistory.slice(-12).map(x=>x.value);
+              const mn=Math.min(...all)-0.5, mx=Math.max(...all)+0.5;
+              const pct=mx===mn?0.5:(e.value-mn)/(mx-mn);
+              const h=Math.max(10,Math.round(pct*64));
+              const isLast=i===indexHistory.slice(-12).length-1;
+              return <div key={i} title={`${e.value} — ${e.date}`} style={{ flex:1, height:`${h}px`, borderRadius:"4px 4px 0 0", background:isLast?T.accent:`${T.accent}2A`, transition:"height .3s" }}/>;
+            })}
+          </div>
+          <div style={{ height:"1px", background:T.border, marginBottom:"10px" }}/>
+          <div style={{ display:"flex", flexDirection:"column", gap:"4px", maxHeight:"130px", overflowY:"auto" }}>
+            {[...indexHistory].reverse().slice(0,6).map((e,i)=>(
+              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 12px", background:i===0?T.accentLight:T.surfaceAlt, borderRadius:"8px", border:i===0?`1px solid ${T.accent}33`:"none" }}>
+                <span style={{ fontSize:"12px", color:T.textMid }}>{new Date(e.date+"T00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})}</span>
+                <span style={{ fontSize:"13px", fontWeight:700, color:i===0?T.accent:T.textMid, fontFamily:"'Playfair Display',serif" }}>{e.value}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── BADGES SECTION ───────────────────────────────────────────────────────────
+function BadgesSection({ currentUser, slots, reviews, profiles, memberships }) {
+  const badges = computeBadges(currentUser.uid, slots, reviews, profiles, memberships);
+  return (
+    <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"22px", boxShadow:T.shadow }}>
+      <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"20px" }}>
+        <div style={{ width:"38px", height:"38px", borderRadius:"11px", background:T.goldLight, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="1.8" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:T.text }}>Mes badges</div>
+          <div style={{ fontSize:"12px", color:T.textLight }}>{badges.length} / {BADGES.length} débloqué{badges.length>1?"s":""}</div>
+        </div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+        {BADGES.map(b=>{
+          const unlocked=badges.some(ub=>ub.id===b.id);
+          return (
+            <div key={b.id} style={{ borderRadius:"14px", padding:"16px 14px", background:T.surface, border:`1.5px solid ${unlocked?T.accent+"44":T.border}`, opacity:unlocked?1:0.38, transition:"all .2s", boxShadow:unlocked?`0 4px 20px ${T.accent}15`:T.shadow, position:"relative", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:"8px" }}>
+              <BadgeIcon id={b.id} size={80} grayscale={!unlocked} />
+              <div style={{ fontSize:"11px", fontWeight:700, color:unlocked?T.accent:T.textMid, lineHeight:1.3 }}>{b.label}</div>
+              <div style={{ fontSize:"10px", color:T.textLight, lineHeight:1.3 }}>{b.desc}</div>
+              <div style={{ position:"absolute", top:"8px", right:"8px" }}>
+                {unlocked
+                  ? <div style={{ width:"18px", height:"18px", borderRadius:"50%", background:T.accent, display:"flex", alignItems:"center", justifyContent:"center" }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6 9 17l-5-5"/></svg></div>
+                  : <div style={{ width:"18px", height:"18px", borderRadius:"50%", background:T.surfaceAlt, border:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"center" }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={T.borderStrong} strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                }
+              </div>
             </div>
           );
         })}
@@ -2460,11 +2854,134 @@ function HistoriqueView({ slots, profiles, currentUser }) {
   );
 }
 
+// ─── KPI SECTION (stats perso) ────────────────────────────────────────────────
+function KpiSection({ currentUser, slots, reviews }) {
+  const today = new Date().toISOString().split("T")[0];
+  const mySlots   = slots.filter(s => s.participants?.includes(currentUser.uid));
+  const myPast    = mySlots.filter(s => s.date < today);
+  const myCreated = slots.filter(s => s.author === currentUser.uid);
+  const myReviews = reviews.filter(r => r.author === currentUser.uid);
+  const partners  = new Set(mySlots.flatMap(s=>s.participants||[]).filter(u=>u!==currentUser.uid));
+
+  const items = [
+    { label:"Parties jouées", val:myPast.length, sub:"au total",
+      icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.5 7 7l4 5 4-8 4 14.5H3.5z" opacity=".25"/><path d="M2 19.5a.75.75 0 0 1 .72-.75h18.56a.75.75 0 0 1 0 1.5H2.72A.75.75 0 0 1 2 19.5z"/></svg>, color:T.accent },
+    { label:"Tee Times organisés", val:myCreated.length, sub:"créés par moi",
+      icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2a1 1 0 0 0-1 1v1H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1V3a1 1 0 1 0-2 0v1H7V3a1 1 0 0 0-1-1z" opacity=".3"/><path d="M2 9h20v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9z"/><path fill="white" d="M12 12a1 1 0 0 1 1 1v1h1a1 1 0 1 1 0 2h-1v1a1 1 0 1 1-2 0v-1h-1a1 1 0 1 1 0-2h1v-1a1 1 0 0 1 1-1z"/></svg>, color:"#2A5C6E" },
+    { label:"Membres joués", val:partners.size, sub:"partenaires distincts",
+      icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7" r="4" opacity=".35"/><path d="M1 21v-1a8 8 0 0 1 8-8 8 8 0 0 1 8 8v1H1z" opacity=".35"/><circle cx="17" cy="8" r="3"/><path d="M13.5 21v-.5a6.5 6.5 0 0 1 7-6.49V21h-7z"/></svg>, color:"#7C5C2A" },
+    { label:"Experiences", val:myReviews.length, sub:"publiées",
+      icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/><path fill="white" d="M7 9h10v1.5H7V9zm0 3.5h7V14H7v-1.5z"/></svg>, color:"#5C2A6E" },
+  ];
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
+      {items.map(({label,val,sub,icon,color})=>(
+        <div key={label} style={{ background:T.surface, borderRadius:"16px", border:`1.5px solid ${T.border}`, padding:"18px 16px", boxShadow:T.shadow, position:"relative", overflow:"hidden" }}>
+          <div style={{ position:"absolute", top:"-16px", right:"-16px", width:"68px", height:"68px", borderRadius:"50%", background:`${color}0D`, pointerEvents:"none" }}/>
+          <div style={{ width:"36px", height:"36px", borderRadius:"10px", background:`${color}18`, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"12px", color }}>{icon}</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"32px", fontWeight:500, color, lineHeight:1, marginBottom:"4px" }}>{val}</div>
+          <div style={{ fontSize:"12px", fontWeight:600, color:T.text, marginBottom:"2px" }}>{label}</div>
+          <div style={{ fontSize:"10px", color:T.textLight }}>{sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── RANKING SECTION ─────────────────────────────────────────────────────────
+function RankingSection({ slots, profiles, memberships, currentUser, myTeamIds = [], teams = {}, currentTeamId = null, onSwitchTeam }) {
+  const today = new Date().toISOString().split("T")[0];
+  // Filtrer strictement sur l'équipe active (currentTeamId)
+  // pour que le classement se mette à jour quand on change d'équipe
+  const activeTeamForRanking = currentTeamId || myTeamIds[0] || null;
+  const teamMemberIds = memberships
+    .filter(m => m.teamId === activeTeamForRanking)
+    .map(m => m.userId);
+  const rankingPlayed = Object.values(profiles)
+    .filter(p => teamMemberIds.includes(p.uid))
+    .map(p => ({ ...p, count: slots.filter(s => s.participants?.includes(p.uid) && s.date < today && s.teamId === activeTeamForRanking).length }))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 5);
+
+  return (
+    <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, overflow:"hidden", boxShadow:T.shadow }}>
+      <div style={{ background:T.accent, padding:"20px 22px 22px" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: rankingPlayed.length > 0 ? "22px" : "0" }}>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"17px", fontWeight:500, color:"#fff" }}>Classement équipe</div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.8"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/></svg>
+        </div>
+        {myTeamIds.length > 1 && onSwitchTeam && (
+          <div style={{ display:"flex", gap:"6px", overflowX:"auto", marginBottom:"16px" }}>
+            {myTeamIds.map(tid=>{
+              const team=teams[tid]; if(!team) return null;
+              const isActive=tid===currentTeamId;
+              return <button key={tid} onClick={()=>onSwitchTeam(tid)} style={{ display:"flex", alignItems:"center", gap:"5px", padding:"5px 11px", borderRadius:"16px", border:`1px solid ${isActive?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.2)"}`, background:isActive?"rgba(255,255,255,0.2)":"transparent", color:"#fff", fontSize:"11px", fontWeight:isActive?700:400, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>{team.name}</button>;
+            })}
+          </div>
+        )}
+        {rankingPlayed.length === 0 && <p style={{ fontSize:"13px", color:"rgba(255,255,255,0.6)", fontStyle:"italic" }}>Aucun membre dans cette équipe pour le moment.</p>}
+        {rankingPlayed.length >= 1 && (() => {
+          const top=rankingPlayed.slice(0,3);
+          const order=top.length>=3?[top[1],top[0],top[2]]:top.length===2?[top[1],top[0]]:[top[0]];
+          const heights=["64px","80px","56px"];
+          const medals=[{label:"2",color:"#C0C0C0",size:34},{label:"1",color:T.gold,size:42},{label:"3",color:"#CD7F32",size:30}];
+          return (
+            <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"center", gap:"12px" }}>
+              {order.map((p,pos)=>{
+                const realRank=top.indexOf(p);
+                const isMe=p.uid===currentUser.uid;
+                const m=medals[pos];
+                return (
+                  <div key={p.uid} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"8px", flex:pos===1?"0 0 100px":"0 0 78px" }}>
+                    <div style={{ fontSize:"11px", fontWeight:600, color:isMe?T.gold:"rgba(255,255,255,0.9)", textAlign:"center", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%", fontFamily:"'DM Sans',sans-serif" }}>{p.firstName}{isMe?" · moi":""}</div>
+                    <div style={{ position:"relative" }}>
+                      <div style={{ borderRadius:"50%", border:`3px solid ${m.color}`, boxShadow:`0 0 0 1px ${m.color}44,0 4px 12px rgba(0,0,0,0.2)` }}><Ava profile={p} size={m.size}/></div>
+                      <div style={{ position:"absolute", bottom:"-6px", left:"50%", transform:"translateX(-50%)", width:"18px", height:"18px", borderRadius:"50%", background:m.color, display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff" }}>
+                        <span style={{ fontSize:"9px", fontWeight:800, color:pos===1?"#7A5B00":"#fff", lineHeight:1 }}>{realRank+1}</span>
+                      </div>
+                    </div>
+                    <div style={{ width:"100%", height:heights[pos], background:pos===1?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.12)", borderRadius:"8px 8px 0 0", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:"2px", marginBottom:"-1px" }}>
+                      <div style={{ fontFamily:"'Playfair Display',serif", fontSize:pos===1?"22px":"18px", fontWeight:600, color:pos===1?"#fff":"rgba(255,255,255,0.8)", lineHeight:1 }}>{p.count}</div>
+                      <div style={{ fontSize:"9px", color:"rgba(255,255,255,0.5)", letterSpacing:"0.05em", textTransform:"uppercase" }}>parties</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+      {rankingPlayed.length > 3 && (
+        <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:"2px" }}>
+          {rankingPlayed.slice(3).map((p,i)=>{
+            const isMe=p.uid===currentUser.uid;
+            return (
+              <div key={p.uid} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 12px", background:isMe?T.accentLight:"transparent", borderRadius:"10px" }}>
+                <span style={{ fontSize:"12px", fontWeight:700, color:T.textLight, width:"20px", textAlign:"center" }}>{i+4}</span>
+                <Ava profile={p} size={30}/>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:"13px", fontWeight:isMe?600:400, color:isMe?T.accent:T.text }}>{p.firstName} {p.lastName||""}{isMe?" · moi":""}</div>
+                  {p.index && <div style={{ fontSize:"10px", color:T.textLight }}>Index {p.index}</div>}
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"16px", fontWeight:500, color:isMe?T.accent:T.textMid }}>{p.count}</span>
+                  <span style={{ fontSize:"10px", color:T.textLight, marginLeft:"3px" }}>pts</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── STATS VIEW (Handicap + Badges + Classement) ─────────────────────────────
-function StatsView({ slots, reviews, profiles, memberships, currentUser, notify }) {
+function StatsView({ slots, reviews, profiles, memberships, currentUser, notify, myTeamIds = [], teams = {}, currentTeamId = null, onSwitchTeam }) {
   const pr = profiles[currentUser.uid] || {};
   const [newIndex, setNewIndex] = useState("");
-  const [indexHistory, setIndexHistory] = useState(pr.indexHistory || []);
+  const [indexHistory, setIndexHistory] = useState(Array.isArray(pr.indexHistory) ? pr.indexHistory : []);
 
   const today    = new Date().toISOString().split("T")[0];
   const mySlots  = slots.filter(s => s.participants?.includes(currentUser.uid));
@@ -2475,10 +2992,15 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
   const badges   = computeBadges(currentUser.uid, slots, reviews, profiles, memberships);
 
   // Classement équipe (parties jouées)
+  // Classement : seulement membres de mes équipes
+  const teamMemberIds = memberships
+    .filter(m => myTeamIds.includes(m.teamId))
+    .map(m => m.userId);
   const rankingPlayed = Object.values(profiles)
-    .map(p => ({ ...p, count: slots.filter(s=>s.participants?.includes(p.uid)&&s.date<today).length }))
-    .sort((a,b)=>b.count-a.count)
-    .slice(0,5);
+    .filter(p => teamMemberIds.includes(p.uid))
+    .map(p => ({ ...p, count: slots.filter(s => s.participants?.includes(p.uid) && s.date < today && (s.teamId ? myTeamIds.includes(s.teamId) : s.author === p.uid)).length }))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 5);
 
   async function saveIndex() {
     const val = parseFloat(newIndex.replace(",","."));
@@ -2527,7 +3049,7 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
       color: "#7C5C2A",
     },
     {
-      label:"Feedbacks", val:myReviews.length, sub:"publiés",
+      label:"Experiences", val:myReviews.length, sub:"publiées",
       icon: (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
           <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/>
@@ -2540,6 +3062,25 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+
+      {/* ── Team Switcher contextuel ── */}
+      {myTeamIds.length > 1 && onSwitchTeam && (
+        <div style={{ display:"flex", gap:"6px", overflowX:"auto", paddingBottom:"2px" }}>
+          {myTeamIds.map(tid => {
+            const team = teams[tid];
+            if (!team) return null;
+            const isActive = tid === currentTeamId;
+            return (
+              <button key={tid} onClick={() => onSwitchTeam(tid)} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"20px", border:`1.5px solid ${isActive?T.accent:T.border}`, background:isActive?T.accentLight:T.surface, color:isActive?T.accent:T.textMid, fontSize:"12px", fontWeight:isActive?700:400, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
+                <div style={{ width:"16px", height:"16px", borderRadius:"50%", background:isActive?T.accent:T.surfaceAlt, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <span style={{ fontSize:"8px", fontWeight:700, color:isActive?"#fff":T.textMid }}>{(team.name||"?")[0].toUpperCase()}</span>
+                </div>
+                {team.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Handicap tracker ── */}
       <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"22px", boxShadow:T.shadow }}>
@@ -2701,6 +3242,28 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
 
 
       {/* ── Mes statistiques détaillées ── */}
+      {/* ── Sélecteur d'équipe — contexte Stats ── */}
+      {myTeamIds.length > 1 && (
+        <div style={{ background:T.surface, borderRadius:T.radius, border:`1.5px solid ${T.border}`, padding:"12px 16px", boxShadow:T.shadow, marginBottom:"4px" }}>
+          <div style={{ fontSize:"11px", fontWeight:600, color:T.textLight, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"10px" }}>Contexte équipe</div>
+          <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+            {myTeamIds.map(tid => {
+              const team = teams[tid];
+              if (!team) return null;
+              const isActive = (tid === (myTeamIds.find(id => id === currentTeamId) || myTeamIds[0]));
+              return (
+                <button key={tid} style={{ display:"flex", alignItems:"center", gap:"7px", padding:"6px 12px", borderRadius:"20px", border:`1.5px solid ${isActive?T.accent:T.border}`, background:isActive?T.accentLight:T.surface, color:isActive?T.accent:T.textMid, fontSize:"12px", fontWeight:isActive?600:400, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>
+                  <div style={{ width:"16px", height:"16px", borderRadius:"50%", background:isActive?T.accent:T.surfaceAlt, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <span style={{ fontSize:"8px", fontWeight:700, color:isActive?"#fff":T.textMid }}>{(team.name||"?")[0].toUpperCase()}</span>
+                  </div>
+                  {team.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Stats — 4 tuiles premium ── */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" }}>
         {statItems.map(({ label, val, sub, icon, color }) => (
@@ -2737,8 +3300,9 @@ function AgendaView({ profiles, currentUser, slots: slotsFromParent, onAddSlot, 
   }, [slotsFromParent]);
 
   const today = new Date().toISOString().split("T")[0];
+  // Agenda personnel : uniquement mes Tee Times (ceux où je participe)
   const upcoming = slots
-    .filter(s => s.date >= today)
+    .filter(s => s.date >= today && s.participants?.includes(currentUser.uid))
     .filter(s => filterPlayer === "all" || s.participants?.includes(filterPlayer))
     .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
 
@@ -2935,7 +3499,7 @@ const BADGES = [
   { id:"slot_50",       label:"50 parties",        desc:"Un vrai habitué",               condition:(stats)=>stats.played>=50 },
   { id:"creator_5",     label:"Organisateur",      desc:"5 slots créés",                 condition:(stats)=>stats.created>=5 },
   { id:"social",        label:"Social",            desc:"5 membres différents",          condition:(stats)=>stats.partners>=5 },
-  { id:"reviewer",      label:"Critique",          desc:"3 feedbacks publiés",           condition:(stats)=>stats.reviews>=3 },
+  { id:"reviewer",      label:"Critique",          desc:"3 experiences publiées",           condition:(stats)=>stats.reviews>=3 },
   { id:"early_bird",    label:"Lève-tôt",          desc:"Parti avant 8h",               condition:(stats)=>stats.earlyBird>=1 },
   { id:"index_tracker", label:"Index Tracker",     desc:"5 index enregistrés",           condition:(stats)=>stats.indexEntries>=5 },
   { id:"team_player",   label:"Équipier",          desc:"Membre d'une équipe",           condition:(stats)=>stats.inTeam },
@@ -3002,7 +3566,7 @@ function OnboardingScreen({ currentUser, onDone }) {
       ),
       title: "Rejoignez une équipe",
       subtitle: "Ensemble sur le green",
-      desc: "Votre équipe est le cœur de Fairway. Rejoignez une équipe existante ou créez la vôtre pour partager vos parties, vos feedbacks et votre classement.",
+      desc: "Votre équipe est le cœur de Fairway. Rejoignez une équipe existante ou créez la vôtre pour partager vos parties, vos experiences et votre classement.",
       cta: "Suivant",
     },
     {
@@ -3011,9 +3575,9 @@ function OnboardingScreen({ currentUser, onDone }) {
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
         </svg>
       ),
-      title: "Partagez vos feedbacks",
+      title: "Partagez vos experiences",
       subtitle: "Notez vos parcours",
-      desc: "Après chaque sortie, laissez un feedback sur le parcours. Vos avis aident l'équipe à choisir les meilleures destinations.",
+      desc: "Après chaque sortie, laissez une experience sur le parcours. Vos experiences aident l'équipe à choisir les meilleures destinations.",
       cta: "C'est parti !",
     },
   ];
@@ -3080,7 +3644,7 @@ function NoTeamBanner({ onGoToTeams }) {
         Rejoignez une équipe
       </h3>
       <p style={{ fontSize:"14px", color:T.textMid, lineHeight:1.65, marginBottom:"24px", maxWidth:"280px", margin:"0 auto 24px" }}>
-        Pour accéder aux Tee Times, feedbacks et au classement de votre groupe, vous devez d'abord rejoindre ou créer une équipe.
+        Pour accéder aux Tee Times, experiences et au classement de votre groupe, vous devez d'abord rejoindre ou créer une équipe.
       </p>
       <button onClick={onGoToTeams} style={{ padding:"12px 28px", borderRadius:"14px", background:T.accent, color:"#fff", border:"none", fontSize:"14px", fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", boxShadow:`0 4px 16px ${T.accent}44` }}>
         Gérer mes équipes
@@ -3093,6 +3657,10 @@ function NoTeamBanner({ onGoToTeams }) {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null); // {uid, username}
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activeTeamId, setActiveTeamId] = useState(() => {
+    try { return localStorage.getItem("fw-active-team") || null; } catch { return null; }
+  });
+  const [showTeamSwitch, setShowTeamSwitch] = useState(false);
   const [profiles,    setProfiles]    = useState({});
   const [teams,       setTeams]       = useState({});       // { teamId: {id,name,memberIds,...} }
   const [memberships, setMemberships] = useState([]);       // [{userId,teamId,addedByUserId,joinedAt}]
@@ -3156,6 +3724,13 @@ export default function App() {
   function openSlotDetail(slot) { setDetailSlot(slot); }
 
   function notify(msg) { setToast(msg); setTimeout(() => setToast(null), 3200); }
+
+  function switchTeam(teamId) {
+    setActiveTeamId(teamId);
+    setShowTeamSwitch(false);
+    try { localStorage.setItem("fw-active-team", teamId); } catch {}
+    notify(`Équipe "${teams[teamId]?.name}" activée`);
+  }
 
   // Notifications push navigateur
   useEffect(() => {
@@ -3260,6 +3835,11 @@ export default function App() {
     setCurrentUser(u);
     try { localStorage.setItem("fw-session-v2", JSON.stringify(u)); } catch {}
     try { if (!localStorage.getItem(`fw_onboarded_${pr.uid}`)) setShowOnboarding(true); } catch {}
+    // Restaurer l'équipe active depuis localStorage
+    try {
+      const saved = localStorage.getItem("fw-active-team");
+      if (saved) setActiveTeamId(saved);
+    } catch {}
     setAuthUser(""); setAuthPw("");
   }
 
@@ -3300,37 +3880,43 @@ export default function App() {
     const uid = currentUser.uid;
     notify("Suppression en cours...");
     try {
-      // 1. Retrait de toutes les équipes
-      const myTeams = profiles[uid]?.teamsIds || [];
-      for (const teamId of myTeams) {
-        await updateDoc(doc(db, `teams/${teamId}`), { memberIds: arrayRemove(uid) });
-        await fbDel(`memberships/${teamId}_${uid}`);
+      // 1. Retrait de TOUTES les équipes — source de vérité = teams en BDD
+      // On parcourt toutes les équipes chargées ET memberships
+      const allTeamIds = [
+        ...new Set([
+          ...(profiles[uid]?.teamsIds || []),
+          ...memberships.filter(m => m.userId === uid).map(m => m.teamId),
+          ...Object.values(teams).filter(t => t.memberIds?.includes(uid)).map(t => t.id),
+        ])
+      ];
+      for (const teamId of allTeamIds) {
+        try { await updateDoc(doc(db, `teams/${teamId}`), { memberIds: arrayRemove(uid) }); } catch {}
+        try { await fbDel(`memberships/${teamId}_${uid}`); } catch {}
       }
-      // 2. Tee Times : retrait des participants ou suppression si créateur
+      // Supprimer aussi de teamsIds dans tous les profils qui l'auraient référencé
+      // (nettoyage défensif)
+
+      // 2. Tee Times — tous les slots chargés en mémoire
       for (const s of slots) {
         if (s.author === uid) {
-          // Supprimer le slot entier si créateur
-          await fbDel(`slots/${s.id}`);
+          try { await fbDel(`slots/${s.id}`); } catch {}
         } else if (s.participants?.includes(uid)) {
-          // Juste se retirer des participants
-          await updateDoc(doc(db, `slots/${s.id}`), { participants: arrayRemove(uid) });
+          try { await updateDoc(doc(db, `slots/${s.id}`), { participants: arrayRemove(uid) }); } catch {}
         }
       }
-      // 3. Supprimer ses feedbacks/reviews
-      const myReviews = reviews.filter(r => r.author === uid);
-      for (const r of myReviews) {
-        await fbDel(`reviews/${r.id}`);
+      // 3. Reviews
+      for (const r of reviews) {
+        if (r.author === uid) try { await fbDel(`reviews/${r.id}`); } catch {}
       }
-      // 4. Supprimer ses notifications
-      const myNotifs = notifs.filter(n => n.author === uid);
-      for (const n of myNotifs) {
-        await fbDel(`notifs/${n.id}`);
+      // 4. Notifications
+      for (const n of notifs) {
+        if (n.author === uid) try { await fbDel(`notifs/${n.id}`); } catch {}
       }
-      // 5. Supprimer le profil utilisateur
+      // 5. Supprimer le profil
       await fbDel(`users/${uid}`);
       // 6. Logout
       handleLogout();
-      notify("Compte et données supprimés.");
+      notify("Compte supprimé définitivement.");
     } catch (e) {
       console.error("Delete account error:", e);
       notify("Erreur lors de la suppression.");
@@ -3363,7 +3949,7 @@ export default function App() {
     if (act.hasCourse && !slotCourse.trim()) return;
     const id = Date.now().toString();
     // teamId = première team de l'utilisateur (ou null si pas encore de team)
-    const myTeamId = profiles[currentUser.uid]?.teamsIds?.[0] || null;
+    const myTeamId = currentTeamId; // utilise l'équipe active
     const s = { id, author: currentUser.uid, teamId: myTeamId, activityType: slotActivity, date: slotDate, time: slotTime, course: act.hasCourse ? slotCourse : "", location: !act.hasCourse ? slotLocation : "", maxPlayers: act.hasMaxPlayers !== false ? slotMax : 1, participants: [currentUser.uid], note: slotNote, isPoll: slotIsPoll, pollVotes: slotIsPoll ? {} : null, createdAt: new Date().toISOString() };
     await fbSet(`slots/${id}`, s);
     // Notif avec expiresAt = date du créneau + 1 jour
@@ -3459,11 +4045,12 @@ export default function App() {
 
       if (editingRev) {
         await fbSet(`reviews/${editingRev.id}`, { ...editingRev, course: revCourse, rating: revRating, difficulty: revDiff, text: revText, tips: revTips, photos: finalPhotos, updatedAt: new Date().toISOString() });
-        notify("Feedback modifié ✓");
+        notify("Experience modifiée ✓");
       } else {
         const id = Date.now().toString();
-        await fbSet(`reviews/${id}`, { id, author: currentUser.uid, course: revCourse, rating: revRating, difficulty: revDiff, text: revText, tips: revTips, photos: finalPhotos, date: new Date().toLocaleDateString("fr-FR"), createdAt: new Date().toISOString() });
-        notify("Feedback publié ✓");
+        const revTeamId = currentTeamId; // utilise l'équipe active
+        await fbSet(`reviews/${id}`, { id, author: currentUser.uid, teamId: revTeamId, course: revCourse, rating: revRating, difficulty: revDiff, text: revText, tips: revTips, photos: finalPhotos, date: new Date().toLocaleDateString("fr-FR"), createdAt: new Date().toISOString() });
+        notify("Experience publiée ✓");
       }
       setShowRev(false);
     } catch (err) {
@@ -3476,7 +4063,7 @@ export default function App() {
 
   function handleRevPhoto(e) {
     const files = Array.from(e.target.files);
-    if (revPhotos.length + files.length > 5) { notify("Maximum 5 photos par feedback"); return; }
+    if (revPhotos.length + files.length > 5) { notify("Maximum 5 photos par experience"); return; }
     files.forEach(f => {
       if (f.size > 30 * 1024 * 1024) { notify("Photo trop lourde (max 30 Mo)"); return; }
       // On stocke { file: File, preview: ObjectURL } — pas de base64, supporte HEIC
@@ -3489,19 +4076,35 @@ export default function App() {
 
   // ── DERIVED ──
   const today = new Date().toISOString().split("T")[0];
-  const myTeamIds = profiles[currentUser?.uid]?.teamsIds || [];
-  // Filtrage par team : on voit un Tee Time si même team OU pas de teamId (rétrocompat)
-  // ISOLATION : si pas d'équipe → aucun slot visible (sauf les siens propres)
-  const visibleSlots = myTeamIds.length > 0
-    ? slots.filter(s => !s.teamId || myTeamIds.includes(s.teamId))
-    : slots.filter(s => s.author === currentUser?.uid);
+  // Toutes mes équipes (source de vérité = memberships)
+  const myTeamIds = memberships
+    .filter(m => m.userId === currentUser?.uid && !!teams[m.teamId])
+    .map(m => m.teamId);
+  // Équipe active = activeTeamId si valide, sinon première équipe
+  const currentTeamId = (activeTeamId && myTeamIds.includes(activeTeamId))
+    ? activeTeamId
+    : (myTeamIds[0] || null);
+  const currentTeam = currentTeamId ? teams[currentTeamId] : null;
+  // ISOLATION : on ne voit que le contenu de l'équipe active
+  // Exception : pas d'équipe active → on ne voit que son propre contenu
+  const visibleSlots = slots.filter(s =>
+    currentTeamId
+      ? s.teamId === currentTeamId
+      : s.author === currentUser?.uid
+  );
   const upcoming = visibleSlots.filter(s => s.date >= today && (filterActivity === "all" || s.activityType === filterActivity)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const past = visibleSlots.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
-  const stats = {}; reviews.forEach(r => { if (!stats[r.course]) stats[r.course] = { total: 0, count: 0 }; stats[r.course].total += r.rating; stats[r.course].count++; });
-  // Reviews visibles : seulement celles de mes équipes (ou les miennes propres)
-  const visibleReviews = myTeamIds.length > 0
-    ? reviews.filter(r => !r.teamId || myTeamIds.includes(r.teamId) || r.author === currentUser?.uid)
-    : reviews.filter(r => r.author === currentUser?.uid);
+  // Feedbacks visibles : ceux de tous les membres de mon équipe active
+  // (un feedback est lié à l'auteur, pas à une seule équipe)
+  const currentTeamMemberIds = currentTeamId
+    ? (teams[currentTeamId]?.memberIds || [])
+    : [];
+  const visibleReviews = reviews.filter(r =>
+    currentTeamId
+      ? currentTeamMemberIds.includes(r.author)  // tous les membres de mon équipe active
+      : r.author === currentUser?.uid
+  );
+  const stats = {}; visibleReviews.forEach(r => { if (!stats[r.course]) stats[r.course] = { total: 0, count: 0 }; stats[r.course].total += r.rating; stats[r.course].count++; });
   const filtRev = filterCourse === "Tous" ? visibleReviews : visibleReviews.filter(r => r.course === filterCourse);
   const allUpcoming = visibleSlots.filter(s => s.date >= today).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const usedActivityTypes = [...new Set(allUpcoming.map(s => s.activityType || "parcours"))];
@@ -3509,7 +4112,7 @@ export default function App() {
   const myLang = globalLang; // langue globale (bulle header)
   const TL = useLang(myLang); // traductions actives
   // Notifs actives (non expirées + de ma team ou sans team)
-  const activeNotifs = notifs.filter(n => isNotifActive(n) && (!n.teamId || myTeamIds.includes(n.teamId) || !n.teamId));
+  const activeNotifs = notifs.filter(n => isNotifActive(n) && (!n.teamId || n.teamId === currentTeamId));
   const myUnreadNotifs = activeNotifs.filter(n => n.author !== currentUser?.uid && !n.readBy?.includes(currentUser?.uid));
 
   // ── LOADING ──
@@ -3645,13 +4248,14 @@ export default function App() {
                 {tab !== "profile" && (
                   <Btn variant="primary" style={{ padding: "7px 14px", fontSize: "13px", background: "rgba(232,223,200,0.15)", color: CREAM, border: `1px solid rgba(232,223,200,0.35)` }} onClick={() => tab === "slots" ? setShowSlot(true) : openNewReview()}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
-                    {tab === "slots" ? (myLang === "en" ? "Tee Time" : "Tee Time") : (myLang === "en" ? "Feedback" : "Feedback")}
+                    {tab === "slots" ? (myLang === "en" ? "Tee Time" : "Tee Time") : (myLang === "en" ? "Experience" : "Experience")}
                   </Btn>
                 )}
                 {/* Cloche */}
                 <button onClick={() => {
                   setShowNotifs(v => !v);
                   setShowLang(false);
+                  setShowTeamSwitch(false);
                   if (myUnreadNotifs.length > 0) {
                     myUnreadNotifs.forEach(n => updateDoc(doc(db, `notifs/${n.id}`), { readBy: arrayUnion(currentUser.uid) }));
                   }
@@ -3731,6 +4335,24 @@ export default function App() {
                 <div style={{ position: "absolute", inset: 0, background: "rgba(247,244,239,0.58)" }} />
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
+                {/* ── Team Switcher contextuel ── */}
+                {myTeamIds.length > 1 && (
+                  <div style={{ display:"flex", gap:"6px", overflowX:"auto", paddingBottom:"4px", marginBottom:"16px" }}>
+                    {myTeamIds.map(tid => {
+                      const team = teams[tid];
+                      if (!team) return null;
+                      const isActive = tid === currentTeamId;
+                      return (
+                        <button key={tid} onClick={() => switchTeam(tid)} style={{ display:"flex", alignItems:"center", gap:"6px", padding:"6px 12px", borderRadius:"20px", border:`1.5px solid ${isActive?T.accent:T.border}`, background:isActive?T.accentLight:T.surface, color:isActive?T.accent:T.textMid, fontSize:"12px", fontWeight:isActive?700:400, cursor:"pointer", whiteSpace:"nowrap", fontFamily:"'DM Sans',sans-serif", flexShrink:0 }}>
+                          <div style={{ width:"16px", height:"16px", borderRadius:"50%", background:isActive?T.accent:T.surfaceAlt, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                            <span style={{ fontSize:"8px", fontWeight:700, color:isActive?"#fff":T.textMid }}>{(team.name||"?")[0].toUpperCase()}</span>
+                          </div>
+                          {team.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                   <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: T.text }}>{TL.slots}</h2>
                   <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
@@ -3864,6 +4486,22 @@ export default function App() {
                     </div>
                   );
                 })()}
+                {/* ── Classement équipe — après agenda, avant sessions passées ── */}
+                {currentTeamId && (
+                  <div style={{ marginTop:"32px" }}>
+                    <RankingSection
+                      slots={visibleSlots}
+                      profiles={profiles}
+                      memberships={memberships}
+                      currentUser={currentUser}
+                      myTeamIds={myTeamIds}
+                      teams={teams}
+                      currentTeamId={currentTeamId}
+                      onSwitchTeam={switchTeam}
+                    />
+                  </div>
+                )}
+
                 {past.length > 0 && (
                   <div style={{ marginTop: "40px" }}>
                     <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: "18px", fontWeight: 500, color: T.text, marginBottom: "14px" }}>Sessions passées</h3>
@@ -3895,7 +4533,7 @@ export default function App() {
                 <img src={GOLF_BG_REVIEWS} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 35%", display: "block" }} />
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(26,23,20,0.1) 0%, rgba(26,23,20,0.55) 100%)" }} />
                 <div style={{ position: "absolute", bottom: "20px", left: "22px" }}>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: "#fff" }}>Feedbacks & Parcours</div>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: "#fff" }}>Experiences & Parcours</div>
                   <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.8)", marginTop: "4px", letterSpacing: "0.05em" }}>Partagez vos retours avec l'équipe</div>
                 </div>
               </div>
@@ -3909,7 +4547,7 @@ export default function App() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px", marginBottom: "24px" }}>
                     {Object.entries(stats).map(([course, { total, count }]) => (
                       <div key={course} onClick={() => setFilter(filterCourse === course ? "Tous" : course)} className="chover" style={{ background: filterCourse === course ? T.accentLight : T.surface, border: `1.5px solid ${filterCourse === course ? T.accent : T.border}`, borderRadius: T.radius, padding: "14px", cursor: "pointer", boxShadow: T.shadow }}>
-                        <div style={{ fontSize: "10px", color: T.textLight, marginBottom: "4px", fontWeight: 500 }}>{count} feedbacks</div>
+                        <div style={{ fontSize: "10px", color: T.textLight, marginBottom: "4px", fontWeight: 500 }}>{count} experiences</div>
                         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "13px", color: T.text, lineHeight: 1.3, marginBottom: "8px" }}>{course.split(" – ")[0]}</div>
                         <Stars value={Math.round(total / count)} size={13} />
                       </div>
@@ -3926,8 +4564,8 @@ export default function App() {
               )}
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "20px" }}>
-                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: T.text }}>Feedbacks</h2>
-                <span style={{ fontSize: "12px", color: T.textLight }}>{filtRev.length} feedback{filtRev.length !== 1 ? "s" : ""}</span>
+                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "22px", fontWeight: 500, color: T.text }}>Experiences</h2>
+                <span style={{ fontSize: "12px", color: T.textLight }}>{filtRev.length} experience{filtRev.length !== 1 ? "s" : ""}</span>
               </div>
               {myTeamIds.length === 0 && (
                 <NoTeamBanner onGoToTeams={() => setTab("profile")} />
@@ -3935,7 +4573,7 @@ export default function App() {
               {myTeamIds.length > 0 && filtRev.length === 0 && (
                 <div style={{ textAlign: "center", padding: "64px 20px" }}>
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display: "block", margin: "0 auto 14px" }}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                  <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucun feedback pour l'instant</p>
+                  <p style={{ fontFamily: "'Playfair Display',serif", fontSize: "15px", color: T.textMid, marginBottom: "6px" }}>Aucune experience pour l'instant</p>
                   <p style={{ fontSize: "13px", color: T.textLight }}>Partagez votre retour sur un parcours !</p>
                 </div>
               )}
@@ -3992,7 +4630,7 @@ export default function App() {
 
           {/* ══ PROFILE ══ */}
           {tab === "profile" && (
-            <ProfileTab currentUser={currentUser} profiles={profiles} teams={teams} memberships={memberships} slots={slots} reviews={reviews} onSave={handleSaveProfile} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} notify={notify} onOpenProfile={openProfile} onOpenSlot={openSlotDetail} onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }} />
+            <ProfileTab currentUser={currentUser} profiles={profiles} teams={teams} memberships={memberships} slots={visibleSlots} reviews={visibleReviews} currentTeamId={currentTeamId} currentTeam={currentTeam} onSave={handleSaveProfile} onSwitchTeam={switchTeam} activeTeamId={activeTeamId} myTeamIds={myTeamIds} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} notify={notify} onOpenProfile={openProfile} onOpenSlot={openSlotDetail} onAddSlot={(date) => { setSlotDate(date); setShowSlot(true); }} />
           )}
         </main>
 
@@ -4051,7 +4689,7 @@ export default function App() {
         </Modal>
 
         {/* ── MODAL AVIS ── */}
-        <Modal open={showRev} onClose={() => setShowRev(false)} title={editingRev ? "Modifier le Feedback" : "Nouveau Feedback"}>
+        <Modal open={showRev} onClose={() => setShowRev(false)} title={editingRev ? "Modifier l'Experience" : "Nouvelle Experience"}>
           <Fld label="Parcours"><CourseSel value={revCourse} onChange={setRevCourse} /></Fld>
           <Fld label="Note">
             <Stars value={revRating} size={28} onChange={setRevRating} />
@@ -4064,7 +4702,7 @@ export default function App() {
             </div>
             <span style={{ fontSize: "12px", color: T.accent }}>{DIFFICULTY_LABELS[revDiff]}</span>
           </Fld>
-          <Fld label="Mon Feedback"><Txta value={revText} onChange={e => setRevText(e.target.value)} placeholder="Partage ton expérience sur ce parcours…" rows={4} /></Fld>
+          <Fld label="Mon Experience"><Txta value={revText} onChange={e => setRevText(e.target.value)} placeholder="Partage ton expérience sur ce parcours…" rows={4} /></Fld>
           <Fld label="Conseil (optionnel)"><Txta value={revTips} onChange={e => setRevTips(e.target.value)} placeholder="Un conseil pour bien jouer ce parcours…" rows={2} /></Fld>
           <Fld label={`Photos (${revPhotos.length}/5)`}>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
@@ -4097,7 +4735,7 @@ export default function App() {
             <p style={{ fontSize: "11px", color: T.textLight, margin: 0, fontStyle: "italic" }}>HEIC, JPG, PNG acceptés · Max 30 Mo par photo · Converti en JPG automatiquement</p>
           </Fld>
           <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px" }} onClick={handleSubmitReview}>
-            {editingRev ? "Enregistrer les modifications" : "Publier le Feedback"}
+            {editingRev ? "Enregistrer les modifications" : "Publier l'Experience"}
           </Btn>
         </Modal>
       </div>
