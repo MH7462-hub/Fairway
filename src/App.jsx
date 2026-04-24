@@ -135,10 +135,10 @@ const GOLF_BG_REVIEWS = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBD
 // ─── TRADUCTIONS FR / EN ──────────────────────────────────────────────────────
 const TRANSLATIONS = {
   fr: {
-    slots: "Slots", feedbacks: "Feedbacks", profile: "Profil",
-    upcoming: "À venir", noSlots: "Aucun slot à venir",
+    slots: "Tee Times", feedbacks: "Feedbacks", profile: "Profil",
+    upcoming: "À venir", noSlots: "Aucun Tee Time à venir",
     join: "Rejoindre", leave: "Se désister", cancel: "Annuler", full: "Complet",
-    proposeSlot: "Proposer un slot", newFeedback: "Nouveau feedback",
+    proposeSlot: "Proposer un Tee Time", newFeedback: "Nouveau feedback",
     today: "Aujourd'hui", tomorrow: "Demain",
     by: "Par", players: "joueur", playersPlural: "joueurs",
     chatGroup: "Chat du groupe", closeChat: "Fermer le chat",
@@ -152,10 +152,10 @@ const TRANSLATIONS = {
     username: "Nom d'utilisateur", password: "Mot de passe",
   },
   en: {
-    slots: "Slots", feedbacks: "Feedbacks", profile: "Profile",
-    upcoming: "Upcoming", noSlots: "No upcoming slots",
+    slots: "Tee Times", feedbacks: "Feedbacks", profile: "Profile",
+    upcoming: "Upcoming", noSlots: "No upcoming Tee Times",
     join: "Join", leave: "Leave", cancel: "Cancel", full: "Full",
-    proposeSlot: "Add a slot", newFeedback: "New feedback",
+    proposeSlot: "Add a Tee Time", newFeedback: "New feedback",
     today: "Today", tomorrow: "Tomorrow",
     by: "By", players: "player", playersPlural: "players",
     chatGroup: "Group chat", closeChat: "Close chat",
@@ -406,7 +406,7 @@ function wmoToEmoji(code) {
 const weatherCache = {};
 
 async function fetchWeather(date) {
-  // Paris coords par défaut (le slot n'a pas de géoloc précise)
+  // Paris coords par défaut (le Tee Time n'a pas de géoloc précise)
   const lat = 48.85; const lon = 2.35;
   const key = `${date}`;
   if (weatherCache[key]) return weatherCache[key];
@@ -1196,9 +1196,9 @@ function SlotCard({ slot, profiles, currentUser, onJoin, onLeave, onDelete, onOp
             {showPlayers && hasJoined && (
               <button onClick={() => onLeave(slot.id)} style={{ fontSize: "12px", color: T.textMid, background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Se désister</button>
             )}
-            {/* Bouton Annuler le slot — créateur uniquement */}
+            {/* Bouton Annuler le Tee Time — créateur uniquement */}
             {isOwner && (
-              <button onClick={() => onDelete(slot.id)} style={{ fontSize: "12px", color: T.danger, background: T.dangerLight, border: "none", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>Annuler le slot</button>
+              <button onClick={() => onDelete(slot.id)} style={{ fontSize: "12px", color: T.danger, background: T.dangerLight, border: "none", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>Annuler le Tee Time</button>
             )}
           </div>
         </div>
@@ -1958,7 +1958,7 @@ function ProfileTab({ currentUser, profiles, teams, memberships, slots, reviews,
   const otherProfiles = Object.values(profiles).filter(pr => pr.uid !== currentUser.uid);
   const favProfiles   = otherProfiles.filter(pr => favorites.includes(pr.uid));
 
-  const sections = [["profil","Mon profil"],["stats","Stats & Badges"],["historique","Historique"],["equipe","L'équipe"],["favoris","Favoris"],["agenda","Agenda"]];
+  const sections = [["profil","Mon profil"],["stats","Stats & Badges"],["historique","Historique"],["equipe","Mes équipes"],["favoris","Favoris"],["agenda","Agenda"]];
 
   return (
     <div style={{ animation: "slideUp .2s ease" }}>
@@ -2301,7 +2301,7 @@ function CalendarView({ slots, profiles, currentUser, onOpenSlot, onAddSlot }) {
                 )}
               </div>
 
-              {/* Slots du jour — affichage compact */}
+              {/* Tee Times du jour — affichage compact */}
               {daySlots.slice(0,2).map((s,i) => {
                 const act = ACTIVITY_TYPES.find(a=>a.id===s.activityType)||ACTIVITY_TYPES[0];
                 const label = s.activityType==="parcours"&&s.course
@@ -2359,7 +2359,7 @@ function CalendarView({ slots, profiles, currentUser, onOpenSlot, onAddSlot }) {
           {selectedSlots.length === 0 ? (
             <div onClick={() => onAddSlot && onAddSlot(selected)} style={{ textAlign:"center", padding:"28px", background:T.surface, borderRadius:T.radius, border:`1.5px dashed ${T.border}`, cursor: onAddSlot ? "pointer" : "default" }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={T.border} strokeWidth="1.5" style={{ display:"block", margin:"0 auto 10px" }}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-              <p style={{ fontSize:"13px", color:T.textLight }}>{onAddSlot ? "Cliquez pour ajouter un slot" : "Aucun slot ce jour"}</p>
+              <p style={{ fontSize:"13px", color:T.textLight }}>{onAddSlot ? "Cliquez pour ajouter un Tee Time" : "Aucun Tee Time ce jour"}</p>
             </div>
           ) : (
             <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
@@ -2491,7 +2491,7 @@ function StatsView({ slots, reviews, profiles, memberships, currentUser, notify 
       color: T.accent,
     },
     {
-      label:"Slots organisés", val:myCreated.length, sub:"créés par moi",
+      label:"Tee Times organisés", val:myCreated.length, sub:"créés par moi",
       icon: (
         <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 2a1 1 0 0 0-1 1v1H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1V3a1 1 0 1 0-2 0v1H7V3a1 1 0 0 0-1-1z" opacity=".3"/>
@@ -2768,7 +2768,7 @@ function BadgeIcon({ id, size = 56, grayscale = false }) {
 }
 
 const BADGES = [
-  { id:"first_slot",    label:"Premier départ",   desc:"Premier slot rejoint",          condition:(stats)=>stats.played>=1 },
+  { id:"first_slot",    label:"Premier départ",   desc:"Premier Tee Time rejoint",          condition:(stats)=>stats.played>=1 },
   { id:"slot_10",       label:"Régulier",          desc:"10 parties jouées",             condition:(stats)=>stats.played>=10 },
   { id:"slot_50",       label:"50 parties",        desc:"Un vrai habitué",               condition:(stats)=>stats.played>=50 },
   { id:"creator_5",     label:"Organisateur",      desc:"5 slots créés",                 condition:(stats)=>stats.created>=5 },
@@ -2860,7 +2860,7 @@ export default function App() {
     setViewedProfile(profile);
   }
 
-  // Ouvrir le détail d'un slot (depuis le calendrier)
+  // Ouvrir le détail d'un Tee Time (depuis le calendrier)
   const [detailSlot, setDetailSlot] = useState(null);
   function openSlotDetail(slot) { setDetailSlot(slot); }
 
@@ -3051,12 +3051,12 @@ export default function App() {
     const notifText = `${authorName} propose ${act.label.toLowerCase()}${s.course ? " · " + s.course.split(" – ")[0] : s.location ? " · " + s.location : ""} le ${dateStr} à ${slotTime}`;
     await fbSet(`notifs/${id}`, { id, type: slotActivity, text: notifText, author: currentUser.uid, teamId: myTeamId, readBy: [currentUser.uid], createdAt: new Date().toISOString(), expiresAt: notifExpiresAt(slotDate) });
     setShowSlot(false); setSlotNote(""); setSlotDate(""); setSlotTime(""); setSlotCourse(""); setSlotLocation(""); setSlotIsPoll(false);
-    notify("Slot proposé · Équipe notifiée ✓");
+    notify("Tee Time proposé · Équipe notifiée ✓");
   }
 
   async function handleJoin(id) {
     await updateDoc(doc(db, `slots/${id}`), { participants: arrayUnion(currentUser.uid) });
-    notify("Vous avez rejoint la partie");
+    notify("Vous avez rejoint le Tee Time");
     // Notif push locale
     const s = slots.find(sl=>sl.id===id);
     if (s) {
@@ -3134,7 +3134,7 @@ export default function App() {
   // ── DERIVED ──
   const today = new Date().toISOString().split("T")[0];
   const myTeamIds = profiles[currentUser?.uid]?.teamsIds || [];
-  // Filtrage par team : on voit un slot si même team OU pas de teamId (rétrocompat)
+  // Filtrage par team : on voit un Tee Time si même team OU pas de teamId (rétrocompat)
   const visibleSlots = slots.filter(s => !s.teamId || myTeamIds.includes(s.teamId));
   const upcoming = visibleSlots.filter(s => s.date >= today && (filterActivity === "all" || s.activityType === filterActivity)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const past = visibleSlots.filter(s => s.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
@@ -3272,7 +3272,7 @@ export default function App() {
                 {tab !== "profile" && (
                   <Btn variant="primary" style={{ padding: "7px 14px", fontSize: "13px", background: "rgba(232,223,200,0.15)", color: CREAM, border: `1px solid rgba(232,223,200,0.35)` }} onClick={() => tab === "slots" ? setShowSlot(true) : openNewReview()}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
-                    {tab === "slots" ? (myLang === "en" ? "Slot" : "Slot") : (myLang === "en" ? "Feedback" : "Feedback")}
+                    {tab === "slots" ? (myLang === "en" ? "Tee Time" : "Tee Time") : (myLang === "en" ? "Feedback" : "Feedback")}
                   </Btn>
                 )}
                 {/* Cloche */}
@@ -3384,7 +3384,7 @@ export default function App() {
                     );})}
                   </div>
                 )}
-                {/* Vue calendrier dans Slots */}
+                {/* Vue calendrier dans Tee Times */}
                 {slotsView === "calendar" && (
                   <CalendarView
                     slots={visibleSlots}
@@ -3493,7 +3493,7 @@ export default function App() {
         </main>
 
         {/* ── MODAL CRÉNEAU ── */}
-        <Modal open={showSlot} onClose={() => setShowSlot(false)} title="Proposer un Slot">
+        <Modal open={showSlot} onClose={() => setShowSlot(false)} title="Proposer un Tee Time">
           <Fld label="Type d'activité">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {ACTIVITY_TYPES.map(act => (
@@ -3540,10 +3540,10 @@ export default function App() {
           </button>
           {slotIsPoll && (
             <div style={{ padding:"10px 14px", background:`${T.accent}0d`, borderRadius:T.radiusSm, border:`1px solid ${T.accent}22`, fontSize:"12px", color:T.textMid, lineHeight:1.5 }}>
-              Les membres recevront une notification et pourront voter ✅ Dispo / ❌ Pas dispo avant que le slot soit confirmé.
+              Les membres recevront une notification et pourront voter ✅ Dispo / ❌ Pas dispo avant que le Tee Time soit confirmé.
             </div>
           )}
-          <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px", marginTop: "4px" }} onClick={handleAddSlot}>{slotIsPoll ? "Lancer le sondage" : "Proposer le Slot"}</Btn>
+          <Btn variant="primary" style={{ width: "100%", justifyContent: "center", padding: "13px", marginTop: "4px" }} onClick={handleAddSlot}>{slotIsPoll ? "Lancer le sondage" : "Proposer le Tee Time"}</Btn>
         </Modal>
 
         {/* ── MODAL AVIS ── */}
